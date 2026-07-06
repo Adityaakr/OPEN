@@ -266,8 +266,10 @@ async fn get_condition(
     body["real_count"] = json!(counts.1);
     let mut stmt = conn
         .prepare(
-            "SELECT id, batch_index, frozen_at, finalized_at, predecrypt_ms, finalize_ms
-             FROM batches WHERE condition_id = ?1 ORDER BY batch_index",
+            "SELECT b.id, b.batch_index, b.frozen_at, b.finalized_at, b.predecrypt_ms, b.finalize_ms,
+                    (SELECT COUNT(*) FROM shares s WHERE s.batch_id = b.id AND s.verified = 1),
+                    (SELECT COUNT(*) FROM shares s WHERE s.batch_id = b.id)
+             FROM batches b WHERE b.condition_id = ?1 ORDER BY b.batch_index",
         )
         .map_err(internal)?;
     let batches: Vec<Value> = stmt
@@ -279,6 +281,8 @@ async fn get_condition(
                 "finalized_at": r.get::<_, Option<i64>>(3)?,
                 "predecrypt_ms": r.get::<_, Option<i64>>(4)?,
                 "finalize_ms": r.get::<_, Option<i64>>(5)?,
+                "verified_shares": r.get::<_, i64>(6)?,
+                "total_shares": r.get::<_, i64>(7)?,
             }))
         })
         .map_err(internal)?

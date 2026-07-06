@@ -50,6 +50,18 @@ definition-of-done checklist, bench table, deviations, and run commands.
   sweep green (clippy 0 errors, 13 rust test targets ok, forge 6/6, sdk 7/7,
   explorer builds).
 
+## Post-ship: playground frontend (2026-07-07)
+
+Explorer upgraded into a playground: seal-a-secret hero (bte-sdk wasm in the
+browser), live countdown, operator share dots (new verified_shares/
+total_shares per batch on /v0/conditions/:id), one-time reveal flip, timing
+bars, copyable hashes, skeletons, reduced-motion support. brand.md documents
+the phase-5 design system. Browser-driven e2e via playwright (seal ->
+frozen -> revealed -> condition page -> mobile) with screenshots; found and
+fixed a real SDK bug (bare `fetch` reference throws Illegal invocation in
+browsers). Dockerfile.web now builds the workspace SDK (wasm -> pnpm ->
+caddy). All gates re-run green.
+
 ## Decisions log
 
 - Explorer required CORS: hand-rolled middleware in api.rs (no new deps).

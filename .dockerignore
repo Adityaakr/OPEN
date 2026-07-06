@@ -1,0 +1,15 @@
+target
+node_modules
+**/node_modules
+vendor
+.git
+.dev-ceremony
+*.db
+*.db-*
+contracts/out
+contracts/cache
+packages/sdk/dist
+packages/explorer/dist
+crates/bte-wasm/pkg-seal
+crates/bte-wasm/pkg-verify
+packages/sdk/src/generated

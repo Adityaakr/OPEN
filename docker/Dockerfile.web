@@ -1,12 +1,34 @@
 # Explorer static build baked into the Caddy edge image.
-FROM node:22-alpine AS explorer
+# Three stages: wasm (rust) -> web build (pnpm workspace: sdk + explorer) -> caddy.
+
+FROM rust:1.95-slim AS wasm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh \
+    && rustup target add wasm32-unknown-unknown
 WORKDIR /app
-COPY packages/explorer .
+COPY Cargo.toml Cargo.lock ./
+COPY .cargo ./.cargo
+COPY crates ./crates
+RUN wasm-pack build crates/bte-wasm --target web --release --out-dir pkg-seal \
+    && wasm-pack build crates/bte-wasm --target web --release --out-dir pkg-verify -- --features verify
+
+FROM node:22-alpine AS web
+RUN corepack enable
+WORKDIR /app
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages ./packages
+COPY demos ./demos
+COPY examples ./examples
+COPY --from=wasm /app/crates/bte-wasm/pkg-seal ./crates/bte-wasm/pkg-seal
+COPY --from=wasm /app/crates/bte-wasm/pkg-verify ./crates/bte-wasm/pkg-verify
+RUN pnpm install --frozen-lockfile
+RUN BTE_SKIP_WASM_PACK=1 pnpm -C packages/sdk build
 # Empty VITE_BTE_URL makes the explorer call /v0 relative to its own origin,
 # which Caddy proxies to the coordinator.
-ENV VITE_BTE_URL=""
-RUN npm install --no-package-lock && npm run build
+RUN VITE_BTE_URL="" pnpm -C packages/explorer build
 
 FROM caddy:2-alpine
-COPY --from=explorer /app/dist /srv/explorer
+COPY --from=web /app/packages/explorer/dist /srv/explorer
 COPY docker/Caddyfile /etc/caddy/Caddyfile

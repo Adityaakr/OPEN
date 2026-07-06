@@ -31,7 +31,12 @@ export interface Batch {
   finalized_at?: number | null;
   predecrypt_ms: number | null;
   finalize_ms: number | null;
+  /** Live share progress (present on /v0/conditions/:id). */
+  verified_shares?: number;
+  total_shares?: number;
 }
+
+export const API_BASE = BASE;
 
 export interface ConditionDetail extends ConditionSummary {
   chain_id: number | null;

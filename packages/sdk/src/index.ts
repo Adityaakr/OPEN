@@ -82,7 +82,9 @@ export class BteClient {
       typeof process !== 'undefined' ? process.env?.BTE_DEVNET_URL : undefined;
     this.url = (opts.url ?? envUrl ?? DEVNET_URL).replace(/\/$/, '');
     this.committeeId = opts.committeeId ?? 'default';
-    this.fetchImpl = opts.fetch ?? fetch;
+    // Bind to globalThis: a bare `fetch` reference throws "Illegal
+    // invocation" in browsers when called as a method.
+    this.fetchImpl = opts.fetch ?? ((...args) => globalThis.fetch(...args));
   }
 
   private async request(path: string, init?: RequestInit): Promise<any> {

@@ -25,6 +25,16 @@ export function fmtUnix(sec: number): string {
   });
 }
 
+/** "in 42s", "3m ago", falling back to the absolute date past a day. */
+export function fmtRelative(sec: number): string {
+  const delta = sec - Math.floor(Date.now() / 1000);
+  const abs = Math.abs(delta);
+  if (abs >= 86400) return fmtUnix(sec);
+  const unit =
+    abs >= 3600 ? `${Math.floor(abs / 3600)}h ${Math.floor((abs % 3600) / 60)}m` : abs >= 60 ? `${Math.floor(abs / 60)}m` : `${abs}s`;
+  return delta >= 0 ? `in ${unit}` : `${unit} ago`;
+}
+
 export function statusChip(status: string): string {
   return `<span class="chip chip-${esc(status)}">${esc(status)}</span>`;
 }

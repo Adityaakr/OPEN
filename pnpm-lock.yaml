@@ -40,6 +40,10 @@ importers:
         version: 6.4.3(@types/node@22.20.0)
 
   packages/explorer:
+    dependencies:
+      bte-sdk:
+        specifier: workspace:*
+        version: link:../sdk
     devDependencies:
       typescript:
         specifier: ^5.7.3
