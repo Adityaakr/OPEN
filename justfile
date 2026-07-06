@@ -70,3 +70,9 @@ publish-dry:
 
 prod-up:
     @echo "prod-up: implemented in phase 8" && exit 1
+
+# Anchored auction: Sepolia when SEPOLIA_RPC_URL+ANCHOR_PRIVATE_KEY are set,
+# local anvil otherwise. (forge build must have run once.)
+demo-anchored:
+    cd contracts && forge build
+    node demos/sealed-bid-anchored/index.ts

@@ -29,6 +29,9 @@ services:
       DATABASE_URL: sqlite:///data/bte.db
       REVEAL_TIMEOUT_SECS: "120"
       RUST_LOG: info
+      # at_block conditions: Sepolia passthrough + local anvil on the host.
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
+      BTE_RPC_URL_31337: http://host.docker.internal:8545
     volumes:
       - data:/data
     healthcheck:

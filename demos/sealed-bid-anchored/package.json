@@ -1,0 +1,9 @@
+{
+  "name": "bte-demo-sealed-bid-anchored",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "bte-sdk": "workspace:*",
+    "viem": "^2.21.0"
+  }
+}

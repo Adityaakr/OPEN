@@ -44,3 +44,12 @@ In the base (non-FO) path, `partial_decrypt` verifies the batch Schnorr proofs f
 The FO path has no proofs to check, matching fo.rs behavior. Operators sign whatever
 frozen header set the coordinator publishes; correctness of the reveal is still
 publicly checkable share-by-share and slot-by-slot.
+
+## 6. revealRoot transaction is sent by the key-holder script, not the Rust coordinator
+
+BteAnchor.revealRoot is restricted to a coordinator ADDRESS, per spec. The Rust
+coordinator binary stays chain-free (its only RPC use is read-only
+eth_blockNumber polling); the reveal root is published by whichever process
+holds ANCHOR_PRIVATE_KEY — in the anchored demo, the demo script itself, via
+bte-sdk's anchorRevealRoot. Keeps heavyweight signing deps out of the
+coordinator; the onchain trust boundary (one authorized address) is unchanged.
