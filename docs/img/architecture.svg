@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 590" font-family="Virgil, 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive">
+  <!-- excalidraw-style hand-drawn architecture. background fixed so it reads
+       the same on GitHub light and dark themes -->
+  <rect x="0" y="0" width="980" height="590" fill="#fffdf7"/>
+
+  <!-- ============ your dapp ============ -->
+  <path d="M42 82 q58 -5 116 -2 q60 3 118 0 q4 32 2 62 q-2 30 1 58 q-59 4 -118 2 q-59 -2 -117 1 q-3 -30 -1 -60 q2 -30 -1 -61 z"
+        fill="#ffec99" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="101" y="112" font-size="21" fill="#1e1e1e">your dapp</text>
+  <text x="62" y="141" font-size="14" fill="#1e1e1e">seal('bid: 42') in wasm</text>
+  <text x="62" y="163" font-size="14" fill="#1e1e1e">plaintext never leaves</text>
+  <text x="62" y="184" font-size="14" fill="#1e1e1e">the browser</text>
+
+  <!-- arrow dapp -> coordinator -->
+  <path d="M282 140 q45 -12 88 -2" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <path d="M370 138 l-14 -8 M370 138 l-16 6" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="258" y="56" font-size="13" fill="#4a4a4a">tiny ciphertext,</text>
+  <text x="258" y="72" font-size="13" fill="#4a4a4a">post it anywhere</text>
+  <path d="M300 78 q6 22 2 44" fill="none" stroke="#4a4a4a" stroke-width="1.5" stroke-dasharray="4 4"/>
+
+  <!-- ============ coordinator ============ -->
+  <path d="M376 70 q75 -4 148 -1 q74 3 146 -2 q5 40 2 80 q-3 40 1 78 q-73 5 -147 2 q-74 -3 -146 2 q-5 -40 -2 -80 q3 -40 -2 -79 z"
+        fill="#a5d8ff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="452" y="100" font-size="21" fill="#1e1e1e">coordinator</text>
+  <text x="396" y="128" font-size="14" fill="#1e1e1e">collects sealed blobs</text>
+  <text x="396" y="150" font-size="14" fill="#1e1e1e">cue fires -> batch of 64 freezes</text>
+  <text x="396" y="172" font-size="14" fill="#1e1e1e">positions = sorted ct hashes</text>
+  <text x="396" y="194" font-size="14" fill="#1e1e1e">FFT pre-work runs early, pipelined</text>
+
+  <!-- the cue, hanging above the coordinator -->
+  <path d="M462 22 q34 -7 68 0 q4 9 1 18 q-35 6 -69 0 q-3 -9 0 -18 z"
+        fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="472" y="41" font-size="14" fill="#1e1e1e">the cue</text>
+  <text x="542" y="41" font-size="13" fill="#4a4a4a">(clock time or block height)</text>
+  <path d="M496 46 q-2 10 -4 20" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="5 4"/>
+
+  <!-- arrow coordinator -> operators -->
+  <path d="M676 120 q52 -14 100 -6" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <path d="M776 114 l-14 -7 M776 114 l-15 7" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="686" y="92" font-size="13" fill="#4a4a4a">frozen headers</text>
+
+  <!-- ============ the committee (5 operators) ============ -->
+  <text x="792" y="52" font-size="18" fill="#1e1e1e">committee (3 of 5)</text>
+
+  <path d="M790 66 q66 -4 132 0 q3 12 0 26 q-66 4 -132 0 q-3 -13 0 -26 z" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="800" y="86" font-size="14" fill="#1e1e1e">operator 1</text>
+
+  <path d="M792 104 q66 -3 131 -1 q4 13 1 27 q-66 3 -132 0 q-4 -13 0 -26 z" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="802" y="124" font-size="14" fill="#1e1e1e">operator 2: lies</text>
+
+  <path d="M790 143 q66 -4 132 -1 q3 13 0 27 q-66 3 -132 1 q-3 -14 0 -27 z" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="800" y="163" font-size="14" fill="#1e1e1e">operator 3</text>
+
+  <path d="M791 181 q66 -3 131 0 q4 13 1 26 q-66 4 -132 1 q-3 -14 0 -27 z" fill="#b2f2bb" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="801" y="201" font-size="14" fill="#1e1e1e">operator 4</text>
+
+  <path d="M790 219 q66 -4 132 -1 q3 13 0 27 q-66 3 -132 0 q-3 -13 0 -26 z" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="800" y="239" font-size="14" fill="#868e96">operator 5: offline</text>
+
+  <!-- shares flowing down-left from operators -->
+  <path d="M852 258 q-12 46 -60 74" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <path d="M792 332 l16 -3 M792 332 l10 -13" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="816" y="300" font-size="13" fill="#4a4a4a">one 48-byte share each,</text>
+  <text x="816" y="316" font-size="13" fill="#4a4a4a">for the WHOLE batch</text>
+
+  <!-- ============ reveal ============ -->
+  <path d="M368 330 q100 -5 198 -2 q100 3 196 -2 q6 36 3 72 q-3 36 1 70 q-99 6 -198 3 q-99 -3 -196 3 q-6 -37 -3 -73 q3 -36 -1 -71 z"
+        fill="#d0bfff" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="398" y="362" font-size="20" fill="#1e1e1e">the reveal (anyone can check it)</text>
+  <text x="398" y="392" font-size="14" fill="#1e1e1e">every share verified with a public pairing check</text>
+  <text x="398" y="414" font-size="14" fill="#1e1e1e">bad share? flagged + ignored. any 3 good ones combine</text>
+  <text x="398" y="436" font-size="14" fill="#1e1e1e">-> all 64 plaintexts recovered at once + merkle root</text>
+
+  <!-- arrow coordinator -> reveal -->
+  <path d="M520 232 q-6 40 -2 90" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <path d="M518 322 l-8 -14 M518 322 l9 -14" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+
+  <!-- arrow reveal -> everyone -->
+  <path d="M362 420 q-52 6 -96 -6" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+  <path d="M266 414 l16 -4 M266 414 l14 10" fill="none" stroke="#1e1e1e" stroke-width="2"/>
+
+  <!-- ============ everyone ============ -->
+  <path d="M44 372 q52 -4 104 -1 q52 3 102 -2 q5 26 2 52 q-3 26 1 50 q-53 5 -105 2 q-52 -3 -102 2 q-4 -26 -2 -52 q2 -26 0 -51 z"
+        fill="#ffec99" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="88" y="402" font-size="20" fill="#1e1e1e">everyone</text>
+  <text x="62" y="430" font-size="14" fill="#1e1e1e">reads every payload,</text>
+  <text x="62" y="452" font-size="14" fill="#1e1e1e">all at the same time</text>
+
+  <!-- ============ optional anchor ============ -->
+  <path d="M714 492 q112 -5 224 0 q5 26 2 52 q-114 5 -226 1 q-5 -27 0 -53 z"
+        fill="#fff" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="730" y="518" font-size="14" fill="#1e1e1e">BteAnchor.sol (optional):</text>
+  <text x="730" y="538" font-size="13" fill="#4a4a4a">commits + reveal root on Sepolia</text>
+  <path d="M690 476 q40 18 60 28" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="6 4"/>
+
+  <!-- ============ before / after ============ -->
+  <text x="60" y="278" font-size="15" fill="#c92a2a">before the cue: nobody can read anything.</text>
+  <text x="60" y="298" font-size="15" fill="#c92a2a">not the coordinator. not the operators. not us.</text>
+  <text x="60" y="536" font-size="15" fill="#2b8a3e">after the cue: everybody can. that's the product.</text>
+</svg>
