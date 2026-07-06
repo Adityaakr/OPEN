@@ -52,6 +52,15 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
   chain-free (DEVIATIONS #6).
 - 2026-07-07: explorer needed hand-rolled CORS in api.rs (no new deps).
 
+## Frontend (playground, 2026-07-07)
+- Explorer is a playground: seal in-browser via bte-sdk wasm (packages/explorer/src/playground.ts),
+  live share dots from `verified_shares` per batch (api.rs get_condition), reveal flip.
+- brand.md at repo root is the design source of truth (white, Satoshi, #2563eb, sentence case, no em-dashes).
+- SDK gotcha FIXED: `fetch` must be bound to globalThis (bare reference = Illegal invocation in browsers).
+- Dockerfile.web builds the pnpm workspace in 3 stages (wasm-pack -> pnpm -> caddy); .dockerignore added.
+- Browser e2e pattern: playwright script in scratchpad drives seal->reveal with screenshots; port 8080
+  may be held by the user's other projects (cusp-fi vite) — use a compose port override (18080) for tests.
+
 ## Open items
 - No GitHub remote yet: CI/Actions and npm publish are validated locally only.
 - Sepolia run of the anchored demo pending SEPOLIA_RPC_URL +
