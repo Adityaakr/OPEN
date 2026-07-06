@@ -2,11 +2,16 @@
 # Three stages: wasm (rust) -> web build (pnpm workspace: sdk + explorer) -> caddy.
 
 FROM rust:1.95-slim AS wasm
+# wasm-pack: try the prebuilt binary (github.com) with retries, fall back to
+# building from crates.io — some CI/builder networks cannot reach github.com.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates curl \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh \
-    && rustup target add wasm32-unknown-unknown
+    && rustup target add wasm32-unknown-unknown \
+    && { curl -sSf --retry 3 --retry-all-errors --connect-timeout 15 \
+           https://rustwasm.github.io/wasm-pack/installer/init.sh | sh \
+         && command -v wasm-pack; } \
+       || cargo install wasm-pack --locked
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo ./.cargo
