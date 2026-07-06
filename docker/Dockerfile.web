@@ -35,5 +35,10 @@ RUN BTE_SKIP_WASM_PACK=1 pnpm -C packages/sdk build
 RUN VITE_BTE_URL="" pnpm -C packages/explorer build
 
 FROM caddy:2-alpine
+# Zero-config default: plain HTTP on 8080 (PaaS edges terminate TLS).
+# Override BTE_DOMAIN with a real domain for Caddy-managed TLS (VPS deploys),
+# and BTE_UPSTREAM with the coordinator address.
+ENV BTE_DOMAIN=":8080"
+EXPOSE 8080
 COPY --from=web /app/packages/explorer/dist /srv/explorer
 COPY docker/Caddyfile /etc/caddy/Caddyfile
