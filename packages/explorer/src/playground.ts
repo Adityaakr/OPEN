@@ -423,8 +423,8 @@ export function renderPlayground(host: HTMLElement): () => void {
       const pre = batch?.predecrypt_ms;
       setStep(4, 'done',
         pre != null
-          ? `positions assigned by hash order, dummies padded to ${run.b}. FFT cross-terms precomputed in ${pre} ms, before any share existed (pipelined)`
-          : `positions assigned by hash order, dummies padded to ${run.b}. FFT cross-terms computing…`);
+          ? `positions assigned by hash order, padding to ${run.b}. FFT cross-terms precomputed in ${pre} ms, before any share existed (pipelined)`
+          : `positions assigned by hash order, padding to ${run.b}. FFT cross-terms computing…`);
       setStep(5, verified >= run.t ? 'done' : 'active',
         `${verified} verified, ${run.t} needed. each checked publicly: e(pd_j, g₂) = Σ e(ct_i, v_j^i)`);
       if (verified >= run.t) {

@@ -114,7 +114,6 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
         renderStage();
         revealEl.innerHTML = revealSection(reveal, condition);
         wireCopy(revealEl);
-        wireDummyToggle(revealEl);
         if (pollTimer !== undefined) clearInterval(pollTimer);
         if (tickTimer !== undefined) clearInterval(tickTimer);
       }
@@ -131,23 +130,6 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
     if (pollTimer !== undefined) clearInterval(pollTimer);
     if (tickTimer !== undefined) clearInterval(tickTimer);
   };
-}
-
-function wireDummyToggle(scope: HTMLElement): void {
-  const btn = scope.querySelector<HTMLButtonElement>('.dummy-toggle');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    const expanded = btn.getAttribute('aria-expanded') === 'true';
-    btn.setAttribute('aria-expanded', String(!expanded));
-    const count = scope.querySelectorAll('.dummy-hidden, .dummy-shown').length;
-    scope.querySelectorAll('.dummy-hidden, .dummy-shown').forEach((row) => {
-      row.classList.toggle('dummy-hidden', expanded);
-      row.classList.toggle('dummy-shown', !expanded);
-    });
-    btn.textContent = expanded
-      ? `show ${count} dummy padding slots`
-      : `hide ${count} dummy padding slots`;
-  });
 }
 
 function metaCard(c: ConditionDetail): string {
@@ -184,8 +166,11 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
                     title="copy merkle root">${esc(truncMiddle(r.merkle_root, 12, 10))}</button>
           </dd></div>
         </dl>
-        <p class="trust-note">the merkle root commits to every slot below. anyone can recompute it
-        from the plaintexts and catch a tampered reveal.</p>
+        <p class="trust-note">the merkle root commits to every slot below, padding included.
+        anyone can recompute it from the plaintexts and catch a tampered reveal.
+        <a class="link" download="open-batch-${esc(r.condition_id)}.json"
+           href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(r, null, 2))}">download
+        the batch json</a> to verify it yourself.</p>
         ${slotGrid(r)}
       </div>
       ${boardTable(r)}
@@ -204,7 +189,7 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
 }
 
 /** The whole batch at a glance: one cell per slot, real seals pop out of the
- * dummy padding, corrupt slots go red, private ones carry a lock. */
+ * padding, corrupt slots go red, private ones carry a lock. */
 function slotGrid(r: Reveal): string {
   const cells = r.slots
     .map((s) => {
@@ -216,7 +201,7 @@ function slotGrid(r: Reveal): string {
           : priv
             ? 'slot-cell slot-real slot-private'
             : 'slot-cell slot-real';
-      const what = !s.valid ? 'corrupt' : s.is_dummy ? 'dummy padding' : priv ? 'private seal' : 'revealed seal';
+      const what = !s.valid ? 'corrupt' : s.is_dummy ? 'padding' : priv ? 'private seal' : 'revealed seal';
       return `<span class="${cls}" title="slot ${s.position}: ${what}"></span>`;
     })
     .join('');
@@ -225,53 +210,50 @@ function slotGrid(r: Reveal): string {
     <p class="slot-legend muted">
       <span class="slot-cell slot-real"></span> revealed
       <span class="slot-cell slot-real slot-private"></span> private
-      <span class="slot-cell slot-dummy"></span> dummy padding
+      <span class="slot-cell slot-dummy"></span> padding
     </p>`;
 }
 
-function slotRow(s: Reveal['slots'][number], stagger: number, hidden: boolean): string {
+function slotRow(s: Reveal['slots'][number], stagger: number): string {
   const tags: string[] = [];
   const priv = !s.is_dummy && s.valid && isPrivatePayload(payloadBytes(s.payload_b64));
-  if (s.is_dummy) tags.push('<span class="tag tag-dummy">dummy</span>');
+  if (s.is_dummy) tags.push('<span class="tag tag-dummy">padding</span>');
   if (!s.valid) tags.push('<span class="tag tag-corrupt">corrupt</span>');
   if (priv) tags.push('<span class="tag tag-private">private</span>');
   const decoded = decodePayload(s.payload_b64);
   const payload = !s.valid
     ? '<span class="muted">unrecoverable</span>'
     : s.is_dummy
-      ? '<span class="muted">dummy padding</span>'
+      ? '<span class="muted">padding</span>'
       : priv
         ? '<span class="muted">🔒 opens only with its share link</span>'
         : `<span class="${decoded.isHex ? 'mono' : 'payload-text'}">${esc(decoded.text)}</span>`;
-  return `<tr class="${s.is_dummy ? 'dummy-row' : ''} board-row${hidden ? ' dummy-hidden' : ''}" style="--stagger:${stagger}ms">
+  return `<tr class="${s.is_dummy ? 'dummy-row' : ''} board-row" style="--stagger:${stagger}ms">
     <td class="num">${s.position}</td>
     <td><span class="mono" title="${esc(s.ct_hash)}">${esc(truncMiddle(s.ct_hash, 12, 10))}</span></td>
     <td>${payload} ${tags.join(' ')}</td>
   </tr>`;
 }
 
-/** Real (and corrupt) slots up front; healthy dummy padding collapses into
- * one expandable line so one real secret is not buried under 63 filler rows. */
+/** Real (and corrupt) slots only; healthy padding stays in the grid above.
+ * The table closes with one line saying how much padding filled the batch. */
 function boardTable(r: Reveal): string {
   const interesting = r.slots.filter((s) => !s.is_dummy || !s.valid);
   const padding = r.slots.filter((s) => s.is_dummy && s.valid);
 
   const shown = interesting
-    .map((s, i) => slotRow(s, Math.min(i, 12) * 18, false))
+    .map((s, i) => slotRow(s, Math.min(i, 12) * 18))
     .join('');
-  const collapsed = padding.map((s) => slotRow(s, 0, true)).join('');
-  const toggle =
+  const note =
     padding.length > 0
-      ? `<tr class="dummy-toggle-row"><td colspan="3">
-           <button type="button" class="dummy-toggle link" aria-expanded="false">
-             show ${padding.length} dummy padding slots</button>
-           <span class="muted">batches are fixed at ${r.slots.length} slots, so the
-           coordinator pads the rest with self-sealed dummies. they carry nothing.</span>
+      ? `<tr class="padding-note-row"><td colspan="3">
+           <span class="muted">+ ${padding.length} padding slots keep the batch at ${r.slots.length},
+           fixed by the ceremony. all ${r.slots.length} are committed in the merkle root.</span>
          </td></tr>`
       : '';
   return `<div class="table-wrap"><table>
     <thead><tr><th>slot</th><th>before, sealed (ct hash)</th><th>after, revealed</th></tr></thead>
-    <tbody>${shown}${toggle}${collapsed}</tbody>
+    <tbody>${shown}${note}</tbody>
   </table></div>`;
 }
 

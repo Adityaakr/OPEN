@@ -773,29 +773,14 @@ tbody tr:hover {
   }
 }
 
-/* collapsed dummy padding on the reveal board */
-.dummy-hidden {
-  display: none;
-}
-
-.dummy-toggle-row td {
+/* the one-line padding note closing the reveal board */
+.padding-note-row td {
   padding-top: 12px;
   padding-bottom: 12px;
 }
 
-.dummy-toggle {
-  appearance: none;
-  font: inherit;
+.padding-note-row .muted {
   font-size: 13px;
-  background: none;
-  border: none;
-  padding: 2px 4px;
-  cursor: pointer;
-}
-
-.dummy-toggle-row .muted {
-  font-size: 13px;
-  margin-left: 6px;
 }
 
 /* ---------- crypto trace (behind the scenes) ---------- */
