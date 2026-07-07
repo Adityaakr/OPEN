@@ -280,6 +280,7 @@ h2 {
 
 .playground {
   padding: 24px;
+  font-family: 'DM Sans', 'Satoshi', system-ui, -apple-system, sans-serif;
 }
 
 .field-label {
@@ -939,8 +940,9 @@ tbody tr:hover {
 .scenario-kicker {
   margin: 0;
   color: var(--text);
-  font-size: 14px;
-  font-weight: 700;
+  font-family: 'Josefin Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .scenario-prompt {
