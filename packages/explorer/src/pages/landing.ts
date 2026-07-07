@@ -1,26 +1,49 @@
-// The landing page: a full-screen dark hero over a Spline 3D scene, content
-// anchored bottom-left, staggered blur-fade entrance. Sora for everything
-// here (the landing is its own visual world; the app keeps Josefin/DM Sans).
-// The Spline runtime is lazy-imported so app pages never pay for it, and the
-// scene is decorative: if it fails to load, the dark hero stands alone.
+// The landing page: a full-screen video hero with a glassmorphic nav and
+// content anchored bottom-left, staggered blur-fade entrance. Sora for
+// everything here (the landing is its own visual world; the app keeps
+// Josefin/DM Sans). The background supports HLS: point VIDEO_SRC at any
+// .m3u8 and it attaches via hls.js (lazy-imported; Safari plays it natively).
+// A plain .mp4 URL works too. The video is decorative: if it fails, the dark
+// hero stands alone.
+const VIDEO_SRC =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260511_230229_7c9bc431-46cf-489a-948d-e8144d8eb5d4.mp4';
+
+async function attachVideoSource(
+  video: HTMLVideoElement,
+  src: string,
+): Promise<{ destroy(): void } | null> {
+  if (!src.endsWith('.m3u8') || video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = src;
+    return null;
+  }
+  const { default: Hls } = await import('hls.js');
+  if (!Hls.isSupported()) return null;
+  const hls = new Hls();
+  hls.loadSource(src);
+  hls.attachMedia(video);
+  return hls;
+}
+
 export function renderLanding(root: HTMLElement): () => void {
   const previousTitle = document.title;
   document.title = 'Peal Network. Programmable disclosure';
   root.innerHTML = `
     <div class="landing">
       <nav class="landing-nav" aria-label="Landing navigation">
-        <a class="landing-logo" href="#/">PEAL</a>
-        <div class="landing-links">
-          <a href="#/philosophy">Philosophy</a>
-          <a href="#/protocol">Protocol</a>
-          <a href="#/app">Explorer</a>
-          <a href="https://github.com/Adityaakr/peal-network" target="_blank" rel="noopener">Code</a>
+        <div class="landing-nav-glass">
+          <a class="landing-logo" href="#/">PEAL</a>
+          <div class="landing-links">
+            <a href="#/philosophy">Philosophy</a>
+            <a href="#/protocol">Protocol</a>
+            <a href="#/app">Explorer</a>
+            <a href="https://github.com/Adityaakr/peal-network" target="_blank" rel="noopener">Code</a>
+          </div>
+          <a class="landing-nav-cta" href="#/app">Launch App</a>
         </div>
-        <a class="landing-nav-cta" href="#/app">Launch App</a>
       </nav>
 
       <section class="landing-hero">
-        <div class="landing-scene" aria-hidden="true"><canvas id="landing-canvas"></canvas></div>
+        <video class="landing-video" autoplay muted loop playsinline aria-hidden="true"></video>
         <div class="landing-overlay" aria-hidden="true"></div>
         <div class="landing-content">
           <h1 class="landing-title" style="animation-delay:0.2s">Peal <span>Network</span></h1>
@@ -41,21 +64,23 @@ export function renderLanding(root: HTMLElement): () => void {
     </div>
   `;
 
-  let app: { dispose(): void } | null = null;
+  const video = root.querySelector<HTMLVideoElement>('.landing-video')!;
+  let hls: { destroy(): void } | null = null;
   let cancelled = false;
-  const canvas = root.querySelector<HTMLCanvasElement>('#landing-canvas')!;
-  void import('@splinetool/runtime')
-    .then(({ Application }) => {
-      if (cancelled) return;
-      const instance = new Application(canvas);
-      app = instance;
-      void instance.load('https://prod.spline.design/Slk6b8kz3LRlKiyk/scene.splinecode').catch(() => {});
+  void attachVideoSource(video, VIDEO_SRC)
+    .then((instance) => {
+      if (cancelled) {
+        instance?.destroy();
+        return;
+      }
+      hls = instance;
     })
     .catch(() => {});
 
   return () => {
     cancelled = true;
-    app?.dispose();
+    hls?.destroy();
+    video.removeAttribute('src');
     document.title = previousTitle;
   };
 }

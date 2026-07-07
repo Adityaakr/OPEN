@@ -1824,20 +1824,35 @@ body.landing-page main {
 
 .landing-nav {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 16px;
+  left: 16px;
+  right: 16px;
   z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 32px;
 }
 
 @media (min-width: 1024px) {
   .landing-nav {
-    padding: 20px 64px;
+    top: 20px;
+    left: 40px;
+    right: 40px;
   }
+}
+
+/* Glassmorphic bar: translucent, blurred, hairline-bordered. */
+.landing-nav-glass {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px 10px 22px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.15);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.08) inset,
+    0 8px 32px rgb(0 0 0 / 0.35);
 }
 
 .landing-logo {
@@ -1875,7 +1890,8 @@ body.landing-page main {
 .landing-nav-cta {
   display: none;
   color: var(--l-fg);
-  background: var(--l-nav-button);
+  background: rgb(255 255 255 / 0.12);
+  border: 1px solid rgb(255 255 255 / 0.18);
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
@@ -1893,7 +1909,7 @@ body.landing-page main {
 }
 
 .landing-nav-cta:hover {
-  background: hsl(0 0% 18% / 0.8);
+  background: rgb(255 255 255 / 0.22);
 }
 
 .landing-nav-cta:active {
@@ -1909,21 +1925,21 @@ body.landing-page main {
   overflow: hidden;
 }
 
-.landing-scene {
+.landing-video {
   position: absolute;
   inset: 0;
-}
-
-.landing-scene canvas {
   width: 100%;
   height: 100%;
-  display: block;
+  object-fit: cover;
 }
 
+/* Legibility scrim: darkest where the bottom-left copy sits. */
 .landing-overlay {
   position: absolute;
   inset: 0;
-  background: rgb(0 0 0 / 0.3);
+  background:
+    linear-gradient(to top, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.1) 45%),
+    rgb(0 0 0 / 0.2);
   z-index: 1;
   pointer-events: none;
 }
@@ -1931,7 +1947,6 @@ body.landing-page main {
 .landing-content {
   position: relative;
   z-index: 10;
-  pointer-events: none;
   width: 100%;
   max-width: 42rem;
   padding: 128px 24px 40px;
