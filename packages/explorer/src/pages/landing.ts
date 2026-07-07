@@ -11,9 +11,7 @@ export function renderLanding(root: HTMLElement): () => void {
         <a class="landing-logo" href="#/"><img src="/peal-logo.svg" alt="" width="22" height="22" />Peal</a>
         <div class="landing-links">
           <a href="#/philosophy">Philosophy</a>
-          <a href="#/protocol">Protocol</a>
           <a href="#/app">Explorer</a>
-          <a href="https://github.com/Adityaakr/peal-network" target="_blank" rel="noopener">Code</a>
         </div>
         <a class="landing-nav-cta" href="#/app">Launch App</a>
       </nav>
