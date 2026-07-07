@@ -3,6 +3,7 @@ const sections = [
   ['use-cases', 'use cases'],
   ['lifecycle', 'lifecycle'],
   ['cryptography', 'cryptography'],
+  ['privacy', 'private seals'],
   ['architecture', 'architecture'],
   ['production', 'production'],
   ['integration', 'integration'],
@@ -236,6 +237,26 @@ export function renderProtocol(root: HTMLElement): () => void {
             <div><span class="equation-label">integrity</span><code>k = Hᵣ(K, payload), verify [k]₁ = ct₀</code></div>
           </div>
 
+          <h3 class="subsection-title">the punctured setup</h3>
+          <p class="section-intro">The ceremony publishes powers of a secret
+          <span class="mono">τ</span> with one deliberate hole. Everyone can encrypt toward the
+          missing power. Nobody holds it. That hole is the entire trick.</p>
+          <div class="equations">
+            <div><span class="equation-label">published</span><code>[τʲ]₂ for j = 0 … 2B, except j = B+1 (zeroed)</code></div>
+            <div><span class="equation-label">encryption key</span><code>ek = [τᴮ⁺¹]ₜ, target group only</code></div>
+            <div><span class="equation-label">dealt to operators</span><code>Shamir shares of τ¹ … τᴮ, threshold t of n</code></div>
+            <div><span class="equation-label">per-operator public</span><code>verification values vⱼⁱ</code></div>
+          </div>
+          <p class="section-intro">Sealing masks the payload key with
+          <span class="mono">[k · τᴮ⁺¹]ₜ</span>, a value nobody can compute alone: the power
+          <span class="mono">τᴮ⁺¹</span> exists only in the target group and its preimage was
+          destroyed at setup. Recovering it for a batch requires combining cross-terms from the
+          published powers with <span class="mono">t</span> operator shares of the lower powers.
+          This is also why every batch is exactly <span class="mono">B</span> slots: the trusted
+          setup material and the FFT domain are sized to <span class="mono">B</span> at the
+          ceremony, so the coordinator pads short batches with self-sealed dummies rather than
+          shrinking the math.</p>
+
           <div class="protocol-columns">
             <div>
               <h3>one partial for a whole batch</h3>
@@ -260,11 +281,82 @@ export function renderProtocol(root: HTMLElement): () => void {
             so position assignment is reproducible. The Merkle root covers the complete batch,
             including padding.</p>
           </div>
+
+          <h3 class="subsection-title">pipelined recovery</h3>
+          <div class="protocol-columns">
+            <div>
+              <h3>pre-decrypt, before any share exists</h3>
+              <p class="formula mono">predecrypt_fft: O(B log B) group ops, O(B) pairings</p>
+              <p>The cross-terms depend only on the frozen ciphertexts and the public parameters,
+              so this work starts at freeze, while operator shares are still in flight. An
+              integration test asserts pre-decrypt completes before the first share arrives.
+              On the public devnet it runs in roughly 250 ms for a full batch.</p>
+            </div>
+            <div>
+              <h3>finalize, the moment t shares land</h3>
+              <p class="formula mono">Lagrange combine at x = 0, then FO re-check per slot</p>
+              <p>Any <span class="mono">t</span> verified shares are interpolated once for the
+              whole batch. Each recovered payload re-derives its FO randomness and must reproduce
+              its own KEM header, which isolates a mauled ciphertext to its slot. Observed
+              finalize time on the devnet: 40 to 150 ms.</p>
+            </div>
+          </div>
+
+          <h3 class="subsection-title">the commitment</h3>
+          <div class="equations">
+            <div><span class="equation-label">leaf</span><code>sha256(position_le_u32 || payload)</code></div>
+            <div><span class="equation-label">parent</span><code>sha256(left || right), odd node promoted</code></div>
+            <div><span class="equation-label">padding payload</span><code>"BTE_DUMMY_V0:" || 16 random bytes</code></div>
+          </div>
+          <p class="section-intro">The root binds every slot, padding included, so a reveal cannot
+          be edited after publication without detection. Padding slots are real self-sealed
+          ciphertexts with a tagged random payload, unique per batch. Anyone can download the batch
+          from the reveal endpoint, recompute the root, and compare it with the published or
+          anchored value.</p>
+        </div>
+      </section>
+
+      <section class="protocol-section" id="privacy">
+        <p class="section-number">04</p>
+        <div>
+          <p class="section-kicker">two privacy layers</p>
+          <h2>the network proves when. the link decides who.</h2>
+          <p class="section-intro">Threshold reveal is deliberately public: after the cue, every
+          slot's plaintext is on the record so anyone can verify the batch. That is exactly right
+          for bids and votes, and wrong for a personal note. So there is a second, purely
+          client-side layer on top.</p>
+
+          <div class="protocol-columns">
+            <div>
+              <h3>network layer, public by design</h3>
+              <p>Auctions and votes only work because every participant reads the same reveal and
+              can verify every share that produced it. The protocol never offers per-recipient
+              decryption; hiding the outcome from some verifiers would break the guarantee the
+              products depend on.</p>
+            </div>
+            <div>
+              <h3>link layer, private by default for capsules</h3>
+              <p>Before sealing, the browser wraps a personal payload in AES-128-GCM. The key never
+              reaches any server: it rides only in the share link's hash fragment, which browsers
+              do not transmit. The network still proves when the seal opened. Only people holding
+              the full link learn what it said.</p>
+            </div>
+          </div>
+
+          <div class="equations">
+            <div><span class="equation-label">private payload</span><code>"BTEP1" || iv (12 bytes) || AES-128-GCM(key, text)</code></div>
+            <div><span class="equation-label">share link</span><code>#/s/&lt;condition&gt;/&lt;ct_hash&gt;/&lt;key&gt;</code></div>
+          </div>
+
+          <p class="section-intro">After the reveal, the explorer marks such a slot private instead
+          of printing ciphertext, and a link that lost its key segment gets a clear error rather
+          than garbage. The trade is explicit: there is no recovery path. Lose every copy of the
+          full link and the content stays unreadable forever, by construction.</p>
         </div>
       </section>
 
       <section class="protocol-section" id="architecture">
-        <p class="section-number">04</p>
+        <p class="section-number">05</p>
         <div>
           <p class="section-kicker">system architecture</p>
           <h2>separate the public edge from secret-bearing operators</h2>
@@ -310,7 +402,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section class="protocol-section" id="production">
-        <p class="section-number">05</p>
+        <p class="section-number">06</p>
         <div>
           <p class="section-kicker">production posture</p>
           <h2>what runs today, and what must change for real value</h2>
@@ -355,7 +447,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section class="protocol-section" id="integration">
-        <p class="section-number">06</p>
+        <p class="section-number">07</p>
         <div>
           <p class="section-kicker">dapp integration</p>
           <h2>the product path is four calls</h2>
@@ -368,7 +460,7 @@ export function renderProtocol(root: HTMLElement): () => void {
 
 const open = new BteClient({ url: 'https://open.example' });
 
-const conditionId = await open.condition({ in: 60 });
+const conditionId = await open.condition({ in: 60, tag: 'auction-v1' });
 const sealed = await open.seal(JSON.stringify({
   app: 'auction-v1',
   conditionId,
@@ -393,6 +485,14 @@ console.log(slot.text);</code></pre>
             the commitment. Store it in your database or anchor it onchain before the cue.</p></div>
             <div><span>04</span><h3>treat reveal as asynchronous</h3><p>Use polling, webhooks, or an
             indexer. Handle pending, frozen, stalled, revealed, and per-slot corrupt states.</p></div>
+            <div><span>05</span><h3>tag your conditions</h3><p>Conditions accept an optional tag,
+            up to 32 characters of <span class="mono">a-z 0-9 : _ -</span>. Filter the condition
+            list by your own tag so your app never joins a stranger's round. The playground uses
+            this to keep bid rounds, vote rounds, and capsules apart.</p></div>
+            <div><span>06</span><h3>add a client-side layer for personal data</h3><p>The network
+            reveal is public. For content only the recipient should read, encrypt inside the
+            payload first and put the key in your own channel, the way the explorer's private
+            capsules carry it in the link fragment.</p></div>
           </div>
 
           <h3 class="subsection-title">failure behavior is explicit</h3>
@@ -408,7 +508,7 @@ console.log(slot.text);</code></pre>
       </section>
 
       <section class="protocol-section protocol-trust" id="trust">
-        <p class="section-number">07</p>
+        <p class="section-number">08</p>
         <div>
           <p class="section-kicker">trust model</p>
           <h2>the boundary, stated precisely</h2>
