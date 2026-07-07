@@ -79,6 +79,12 @@ function hex(bytes: Uint8Array): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Local-timezone value for a datetime-local input. */
+function toLocal(d: Date): string {
+  const pad = (v: number) => String(v).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Recipient-side link: countdown first, content after the cue. Private
  * capsules carry the decryption key in the fragment, which never leaves
  * the browser. */
@@ -148,7 +154,31 @@ export function renderPlayground(host: HTMLElement): () => void {
       <option value="300">5m round</option>
       <option value="600">10m round</option>
       <option value="3600">1h round</option>
+      <option value="7200">2h round</option>
+      <option value="21600">6h round</option>
+      <option value="43200">12h round</option>
+      <option value="86400">24h round</option>
+      <option value="custom">pick a date…</option>
     </select>`;
+
+  const roundUntilRow = () => `
+    <div class="pg-row pg-until-row" id="pg-round-until-row" hidden>
+      <label class="field-label" for="pg-round-until" style="margin:8px 0 0">round ends</label>
+      <input id="pg-round-until" type="datetime-local" aria-label="round ends" />
+    </div>`;
+
+  /** Shows the date row when "pick a date…" is chosen on a bid/vote form. */
+  function wireRoundPicker(): void {
+    const sel = fieldsEl.querySelector<HTMLSelectElement>('#pg-round-secs');
+    const row = fieldsEl.querySelector<HTMLElement>('#pg-round-until-row');
+    const input = fieldsEl.querySelector<HTMLInputElement>('#pg-round-until');
+    if (!sel || !row || !input) return;
+    input.min = toLocal(new Date(Date.now() + 2 * 60_000));
+    input.value = toLocal(new Date(Date.now() + 60 * 60_000));
+    sel.addEventListener('change', () => {
+      row.hidden = sel.value !== 'custom';
+    });
+  }
 
   function renderFields(): void {
     roundEl.textContent = ''; // never show the previous scenario's round note
@@ -160,9 +190,11 @@ export function renderPlayground(host: HTMLElement): () => void {
                  placeholder="your bid" aria-label="your bid" />
           ${roundSelect()}
           <button type="submit" class="btn btn-primary" id="pg-seal">seal my bid</button>
-        </div>`;
+        </div>
+        ${roundUntilRow()}`;
       hintEl.textContent =
         'nobody sees any bid until the round reveals. then every bid opens at once and the highest wins.';
+      wireRoundPicker();
     } else if (scenario === 'vote') {
       fieldsEl.innerHTML = `
         <div class="pg-row">
@@ -173,9 +205,11 @@ export function renderPlayground(host: HTMLElement): () => void {
           </select>
           ${roundSelect()}
           <button type="submit" class="btn btn-primary" id="pg-seal">seal my vote</button>
-        </div>`;
+        </div>
+        ${roundUntilRow()}`;
       hintEl.textContent =
         'no running tallies, no bandwagons. every vote stays dark until the round reveals them together.';
+      wireRoundPicker();
     } else {
       fieldsEl.innerHTML = `
         <div class="pg-row">
@@ -209,10 +243,6 @@ export function renderPlayground(host: HTMLElement): () => void {
       const delaySel = fieldsEl.querySelector<HTMLSelectElement>('#pg-delay')!;
       const untilRow = fieldsEl.querySelector<HTMLElement>('#pg-until-row')!;
       const untilInput = fieldsEl.querySelector<HTMLInputElement>('#pg-until')!;
-      const toLocal = (d: Date) => {
-        const pad = (v: number) => String(v).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      };
       const soon = new Date(Date.now() + 2 * 60_000);
       untilInput.min = toLocal(soon);
       untilInput.value = toLocal(new Date(Date.now() + 60 * 60_000));
@@ -245,8 +275,17 @@ export function renderPlayground(host: HTMLElement): () => void {
   const roundTag = () => `round:${scenario}`;
 
   function chosenRoundSecs(): number {
-    const v = Number(host.querySelector<HTMLSelectElement>('#pg-round-secs')?.value);
-    return Number.isFinite(v) && v > 0 ? v : ROUND_SECS;
+    const v = host.querySelector<HTMLSelectElement>('#pg-round-secs')?.value ?? String(ROUND_SECS);
+    if (v === 'custom') {
+      const untilVal = host.querySelector<HTMLInputElement>('#pg-round-until')?.value ?? '';
+      const until = new Date(untilVal);
+      if (!untilVal || Number.isNaN(until.getTime()) || until.getTime() < Date.now() + 60_000) {
+        throw new Error('pick a date at least a minute in the future');
+      }
+      return Math.round((until.getTime() - Date.now()) / 1000);
+    }
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : ROUND_SECS;
   }
 
   async function updateRoundNote(): Promise<void> {
@@ -420,7 +459,9 @@ export function renderPlayground(host: HTMLElement): () => void {
     } catch (err) {
       form.hidden = false;
       liveEl.hidden = true;
-      errorEl.textContent = `sealing failed. ${String(err)}. is the devnet up? try: just compose-up`;
+      errorEl.textContent = String(err).includes('pick a date')
+        ? `${String(err).replace('Error: ', '')}.`
+        : `sealing failed. ${String(err)}. is the devnet up? try: just compose-up`;
       errorEl.hidden = false;
     } finally {
       sealBtn.disabled = false;
