@@ -1172,6 +1172,11 @@ input[type='datetime-local'] {
   color: var(--text);
 }
 
+.protocol-index button[aria-current='true'] {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .protocol-section {
   scroll-margin-top: 72px;
   display: grid;

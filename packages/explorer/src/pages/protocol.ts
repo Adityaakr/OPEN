@@ -28,7 +28,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </header>
 
       <nav class="protocol-index" aria-label="Protocol sections">
-        ${sections.map(([id, label]) => `<button type="button" data-section="${id}">${label}</button>`).join('')}
+        ${sections.map(([id, label], index) => `<button type="button" data-section="${id}"${index === 0 ? ' aria-current="true"' : ''}>${label}</button>`).join('')}
       </nav>
 
       <section class="protocol-section protocol-principle">
@@ -437,15 +437,43 @@ console.log(slot.text);</code></pre>
     </article>
   `;
 
+  const index = root.querySelector<HTMLElement>('.protocol-index');
+  const buttons = Array.from(index?.querySelectorAll<HTMLButtonElement>('[data-section]') ?? []);
+  const setCurrentSection = (id: string) => {
+    for (const button of buttons) {
+      if (button.dataset.section === id) button.setAttribute('aria-current', 'true');
+      else button.removeAttribute('aria-current');
+    }
+  };
+
   const scrollToSection = (event: Event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-section]');
     if (!button) return;
-    const section = document.getElementById(button.dataset.section ?? '');
+    const id = button.dataset.section ?? '';
+    const section = document.getElementById(id);
+    setCurrentSection(id);
     section?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
 
-  const index = root.querySelector<HTMLElement>('.protocol-index');
   index?.addEventListener('click', scrollToSection);
 
-  return () => index?.removeEventListener('click', scrollToSection);
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top));
+      const id = visible[0]?.target.id;
+      if (id) setCurrentSection(id);
+    },
+    { rootMargin: '-10% 0px -76% 0px' },
+  );
+  for (const [id] of sections) {
+    const section = document.getElementById(id);
+    if (section) observer.observe(section);
+  }
+
+  return () => {
+    index?.removeEventListener('click', scrollToSection);
+    observer.disconnect();
+  };
 }
