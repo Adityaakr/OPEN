@@ -32,7 +32,7 @@ lives in the README and docs instead.
 
 | token | value | use |
 |---|---|---|
-| background | `#ffffff` | page, always white |
+| background | sky gradient `#dcebfa -> #eaf3fc -> #f6f9fd` (on html) | page, all routes (2026-07-08; was plain white) |
 | text | `#111827` | body |
 | muted | `#6b7280` | captions, secondary |
 | border | `#e5e7eb` | hairlines, cards |
@@ -40,7 +40,7 @@ lives in the README and docs instead.
 | green | `#16a34a` | revealed / success only |
 | red | `#dc2626` | stalled / rejected / corrupt only |
 
-No gradients, no shadows heavier than `0 1px 2px rgb(0 0 0 / 0.05)`, no dark
+No decorative gradients beyond the page-background sky wash, no shadows heavier than `0 1px 2px rgb(0 0 0 / 0.05)`, no dark
 mode (white is part of the identity).
 
 ## Typography

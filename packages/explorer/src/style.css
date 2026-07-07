@@ -24,9 +24,16 @@
   box-sizing: border-box;
 }
 
+/* One sky gradient across the whole site (landing, app, philosophy,
+   protocol): painted on html so it spans the full document height. */
+html {
+  min-height: 100%;
+  background: linear-gradient(180deg, #dcebfa 0%, #eaf3fc 45%, #f6f9fd 100%) no-repeat;
+}
+
 body {
   margin: 0;
-  background: #fff;
+  background: transparent;
   color: var(--text);
   font-family: 'Satoshi', system-ui, -apple-system, sans-serif;
   font-size: 15px;
