@@ -6,6 +6,9 @@ _Status: active_ (renamed from bte 2026-07-07; design spec from the original bui
 
 - Product name: **Peal**, the guaranteed reveal network. Domain: peal.network.
 - The explorer is **Peal Explorer**.
+- Logo: the teal leaf at packages/explorer/public/peal-logo.svg (also the
+  favicon). Leaf teals #00737F / #005866 are LOGO-ONLY colors, never UI
+  accents; the UI accent stays #2563eb.
 - Identity line: "the guaranteed reveal network"
 - Headline: "your users commit. the network reveals."
 - Supporting line: "commit-reveal without the second transaction."

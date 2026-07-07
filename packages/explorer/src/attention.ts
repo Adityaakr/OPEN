@@ -11,9 +11,10 @@ export function emojiIcon(emoji: string): string {
 }
 
 let faviconEl: HTMLLinkElement | null = null;
+let baseFavicon: string | null = null;
 
 /** Put live state in the tab: "⏳ 2h 14m · Peal" + a lock/unlock favicon.
- * Pass null to restore the defaults. */
+ * Pass null to restore the defaults (the Peal leaf). */
 export function setTabState(title: string | null, emoji?: string): void {
   document.title = title ? `${title} · Peal` : BASE_TITLE;
   if (!faviconEl) {
@@ -23,6 +24,11 @@ export function setTabState(title: string | null, emoji?: string): void {
       faviconEl.rel = 'icon';
       document.head.appendChild(faviconEl);
     }
+    baseFavicon = faviconEl.href || null;
+  }
+  if (title === null && emoji === undefined) {
+    if (baseFavicon) faviconEl.href = baseFavicon;
+    return;
   }
   faviconEl.href = emojiIcon(emoji ?? '🔒');
 }
