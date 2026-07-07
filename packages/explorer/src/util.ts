@@ -54,6 +54,18 @@ export function fmtCountdown(secs: number): string {
   return parts.join(' ');
 }
 
+/** Raw bytes of a base64 payload; empty array when the base64 is malformed. */
+export function payloadBytes(b64: string): Uint8Array {
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch {
+    return new Uint8Array(0);
+  }
+}
+
 /** Decode a base64 payload to UTF-8 text where possible, else hex. */
 export function decodePayload(b64: string): { text: string; isHex: boolean } {
   let bytes: Uint8Array;

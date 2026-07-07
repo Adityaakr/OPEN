@@ -15,7 +15,8 @@ import {
   type Reveal,
 } from './api';
 import { markSealRevealed, rememberSeal } from './attention';
-import { decodePayload, esc, fmtCountdown, truncMiddle } from './util';
+import { encryptPrivate, isPrivatePayload } from './privacy';
+import { decodePayload, esc, fmtCountdown, payloadBytes, truncMiddle } from './util';
 
 const POLL_MS = 1500;
 const ROUND_SECS = 60;
@@ -39,6 +40,8 @@ interface PlaygroundRun {
   scenario: Scenario;
   /** What this tab sealed, for the "you" marker and the capsule view. */
   summary: string;
+  /** Private capsules: the AES key that travels only inside the share link. */
+  shareKey?: string;
   n: number;
   t: number;
   b: number;
@@ -76,9 +79,12 @@ function hex(bytes: Uint8Array): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Recipient-side link: countdown first, content after the cue. */
-function sealLink(run: { conditionId: string; ctHash: string }): string {
-  return `${location.origin}${location.pathname}#/s/${encodeURIComponent(run.conditionId)}/${run.ctHash}`;
+/** Recipient-side link: countdown first, content after the cue. Private
+ * capsules carry the decryption key in the fragment, which never leaves
+ * the browser. */
+function sealLink(run: { conditionId: string; ctHash: string; shareKey?: string }): string {
+  const base = `${location.origin}${location.pathname}#/s/${encodeURIComponent(run.conditionId)}/${run.ctHash}`;
+  return run.shareKey ? `${base}/${run.shareKey}` : base;
 }
 
 /** Parse a revealed slot into a playground entry (bids/votes are JSON). */
@@ -178,9 +184,13 @@ export function renderPlayground(host: HTMLElement): () => void {
         <div class="pg-row pg-until-row" id="pg-until-row" hidden>
           <label class="field-label" for="pg-until" style="margin:8px 0 0">sealed until</label>
           <input id="pg-until" type="datetime-local" aria-label="sealed until" />
-        </div>`;
+        </div>
+        <label class="pg-private-row">
+          <input type="checkbox" id="pg-private" checked />
+          private: only people with the share link can read it after the reveal
+        </label>`;
       hintEl.textContent =
-        'encrypted in this tab with wasm. nobody can read it early, us included. everyone can read it after.';
+        'encrypted in this tab with wasm. nobody can read it early, us included.';
       const delaySel = fieldsEl.querySelector<HTMLSelectElement>('#pg-delay')!;
       const untilRow = fieldsEl.querySelector<HTMLElement>('#pg-until-row')!;
       const untilInput = fieldsEl.querySelector<HTMLInputElement>('#pg-until')!;
@@ -321,15 +331,27 @@ export function renderPlayground(host: HTMLElement): () => void {
       setStep(0, 'done',
         `digest ${committee.digest.slice(0, 12)}…, n=${committee.n} t=${committee.t} B=${committee.b}, re-checked against the wasm parse`);
 
+      // Private capsules get an extra AES-GCM layer; the key rides only in
+      // the share link, so the network reveal exposes ciphertext, not content.
+      let payload: Uint8Array | string = fields.payload;
+      let shareKey: string | undefined;
+      const wantPrivate =
+        scenario === 'note' && (host.querySelector<HTMLInputElement>('#pg-private')?.checked ?? false);
+      if (wantPrivate) {
+        const enc = await encryptPrivate(fields.payload);
+        payload = enc.payload;
+        shareKey = enc.key;
+      }
+
       setStep(1, 'active');
       let sealed: { ctHash: string; sealedB64: string };
       try {
-        sealed = await client.seal(fields.payload, conditionId);
+        sealed = await client.seal(payload, conditionId);
       } catch (e) {
         // The round froze while we were sealing: start a fresh one.
         if (String(e).includes('closed') && scenario !== 'note') {
           conditionId = await client.condition({ in: ROUND_SECS });
-          sealed = await client.seal(fields.payload, conditionId);
+          sealed = await client.seal(payload, conditionId);
         } else {
           throw e;
         }
@@ -341,6 +363,7 @@ export function renderPlayground(host: HTMLElement): () => void {
         ctHash: sealed.ctHash,
         scenario,
         summary: fields.summary,
+        shareKey,
         n: committee.n,
         t: committee.t,
         b: committee.b,
@@ -542,9 +565,22 @@ export function renderPlayground(host: HTMLElement): () => void {
    * plain secret for capsules. Everything comes from the actual reveal. */
   function resultsHtml(reveal: Reveal): string {
     if (!run) return '';
-    const entries: Entry[] = reveal.slots
-      .filter((s) => !s.is_dummy && s.valid)
-      .map((s) => parseEntry(s.ct_hash, decodePayload(s.payload_b64).text));
+    // Private slots decrypt only for their link holders; ours renders from
+    // the summary this tab kept, everyone else's stays a locked marker.
+    let lockedOthers = 0;
+    const entries: Entry[] = [];
+    for (const s of reveal.slots) {
+      if (s.is_dummy || !s.valid) continue;
+      if (isPrivatePayload(payloadBytes(s.payload_b64))) {
+        if (s.ct_hash === run.ctHash) {
+          entries.push({ ctHash: s.ct_hash, kind: 'text', name: 'anon', text: run.summary });
+        } else {
+          lockedOthers += 1;
+        }
+        continue;
+      }
+      entries.push(parseEntry(s.ct_hash, decodePayload(s.payload_b64).text));
+    }
     const mine = reveal.slots.find((s) => s.ct_hash === run!.ctHash);
     if (mine && !mine.valid) {
       return `<p class="pg-secret-out"><span class="error">your slot was flagged corrupt</span></p>`;
@@ -597,6 +633,10 @@ export function renderPlayground(host: HTMLElement): () => void {
     if (parts.length === 0) {
       parts.push(`<p class="pg-secret-out">${esc(run.summary)}</p>`);
     }
+    if (lockedOthers > 0) {
+      parts.push(`<p class="muted">${lockedOthers} private ${lockedOthers === 1 ? 'seal' : 'seals'} in
+        this batch opened only for ${lockedOthers === 1 ? 'its' : 'their'} link holders.</p>`);
+    }
     return parts.join('');
   }
 
@@ -609,7 +649,9 @@ export function renderPlayground(host: HTMLElement): () => void {
           <span class="mono muted">${esc(truncMiddle(run.ctHash, 14, 10))}</span>
         </div>
         ${resultsHtml(reveal)}
-        <p class="muted">everyone can read this now. before the cue, nobody could, operators included.</p>
+        <p class="muted">${run.shareKey
+          ? 'revealed on cue, but the content stays private: only people with your share link can read it.'
+          : 'everyone can read this now. before the cue, nobody could, operators included.'}</p>
         ${traceHtml()}
         <p class="pg-links">
           <button type="button" class="btn" data-copy="${esc(sealLink(run))}">copy share link</button>

@@ -7,11 +7,13 @@ import {
   type Reveal,
 } from '../api';
 import { wireCopy } from '../playground';
+import { isPrivatePayload } from '../privacy';
 import {
   decodePayload,
   esc,
   fmtCountdown,
   fmtUnix,
+  payloadBytes,
   statusChip,
   truncMiddle,
 } from '../util';
@@ -167,13 +169,25 @@ function metaCard(c: ConditionDetail): string {
 }
 
 function revealSection(r: Reveal, c: ConditionDetail): string {
+  const real = r.slots.filter((s) => !s.is_dummy).length;
+  const finalizeMs = Math.max(0, ...r.batches.map((b) => b.finalize_ms ?? 0));
   return `
     <section class="section reveal-in">
       <h2>revealed</h2>
-      <p class="muted">revealed at ${esc(fmtUnix(r.revealed_at))}. merkle root
-        <button type="button" class="hash-copy mono" data-copy="${esc(r.merkle_root)}" title="copy merkle root">${esc(
-          truncMiddle(r.merkle_root, 12, 10),
-        )}</button></p>
+      <div class="card reveal-card">
+        <dl class="stats">
+          <div><dt>opened</dt><dd>${esc(fmtUnix(r.revealed_at))}</dd></div>
+          <div><dt>real seals</dt><dd class="num">${real}<span class="muted"> of ${r.slots.length} slots</span></dd></div>
+          <div><dt>reveal took</dt><dd class="num">${finalizeMs} ms</dd></div>
+          <div><dt>merkle root</dt><dd>
+            <button type="button" class="hash-copy mono" data-copy="${esc(r.merkle_root)}"
+                    title="copy merkle root">${esc(truncMiddle(r.merkle_root, 12, 10))}</button>
+          </dd></div>
+        </dl>
+        <p class="trust-note">the merkle root commits to every slot below. anyone can recompute it
+        from the plaintexts and catch a tampered reveal.</p>
+        ${slotGrid(r)}
+      </div>
       ${boardTable(r)}
     </section>
     <section class="section reveal-in">
@@ -189,16 +203,46 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
   `;
 }
 
+/** The whole batch at a glance: one cell per slot, real seals pop out of the
+ * dummy padding, corrupt slots go red, private ones carry a lock. */
+function slotGrid(r: Reveal): string {
+  const cells = r.slots
+    .map((s) => {
+      const priv = !s.is_dummy && s.valid && isPrivatePayload(payloadBytes(s.payload_b64));
+      const cls = !s.valid
+        ? 'slot-cell slot-corrupt'
+        : s.is_dummy
+          ? 'slot-cell slot-dummy'
+          : priv
+            ? 'slot-cell slot-real slot-private'
+            : 'slot-cell slot-real';
+      const what = !s.valid ? 'corrupt' : s.is_dummy ? 'dummy padding' : priv ? 'private seal' : 'revealed seal';
+      return `<span class="${cls}" title="slot ${s.position}: ${what}"></span>`;
+    })
+    .join('');
+  return `
+    <div class="slot-grid" role="img" aria-label="batch of ${r.slots.length} slots">${cells}</div>
+    <p class="slot-legend muted">
+      <span class="slot-cell slot-real"></span> revealed
+      <span class="slot-cell slot-real slot-private"></span> private
+      <span class="slot-cell slot-dummy"></span> dummy padding
+    </p>`;
+}
+
 function slotRow(s: Reveal['slots'][number], stagger: number, hidden: boolean): string {
   const tags: string[] = [];
+  const priv = !s.is_dummy && s.valid && isPrivatePayload(payloadBytes(s.payload_b64));
   if (s.is_dummy) tags.push('<span class="tag tag-dummy">dummy</span>');
   if (!s.valid) tags.push('<span class="tag tag-corrupt">corrupt</span>');
+  if (priv) tags.push('<span class="tag tag-private">private</span>');
   const decoded = decodePayload(s.payload_b64);
   const payload = !s.valid
     ? '<span class="muted">unrecoverable</span>'
     : s.is_dummy
       ? '<span class="muted">dummy padding</span>'
-      : `<span class="${decoded.isHex ? 'mono' : 'payload-text'}">${esc(decoded.text)}</span>`;
+      : priv
+        ? '<span class="muted">🔒 opens only with its share link</span>'
+        : `<span class="${decoded.isHex ? 'mono' : 'payload-text'}">${esc(decoded.text)}</span>`;
   return `<tr class="${s.is_dummy ? 'dummy-row' : ''} board-row${hidden ? ' dummy-hidden' : ''}" style="--stagger:${stagger}ms">
     <td class="num">${s.position}</td>
     <td><span class="mono" title="${esc(s.ct_hash)}">${esc(truncMiddle(s.ct_hash, 12, 10))}</span></td>

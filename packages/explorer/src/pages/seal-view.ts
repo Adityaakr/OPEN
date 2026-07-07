@@ -16,11 +16,17 @@ import {
   setTabState,
 } from '../attention';
 import { wireCopy } from '../playground';
-import { decodePayload, esc, fmtCountdown, fmtUnix, truncMiddle } from '../util';
+import { decryptPrivate, isPrivatePayload } from '../privacy';
+import { decodePayload, esc, fmtCountdown, fmtUnix, payloadBytes, truncMiddle } from '../util';
 
 const POLL_MS = 2000;
 
-export function renderSealView(root: HTMLElement, conditionId: string, ctHash: string): () => void {
+export function renderSealView(
+  root: HTMLElement,
+  conditionId: string,
+  ctHash: string,
+  shareKey?: string,
+): () => void {
   root.innerHTML = `
     <section class="seal-view">
       <p class="seal-kicker">someone sealed this for you</p>
@@ -155,9 +161,32 @@ export function renderSealView(root: HTMLElement, conditionId: string, ctHash: s
         return;
       }
       notifyReveal('the countdown hit zero. click to read it.');
-      const decoded = decodePayload(slot.payload_b64);
+      // Private payloads carry their key only in this link's fragment.
+      const bytes = payloadBytes(slot.payload_b64);
+      let text: string;
+      let isHex: boolean;
+      if (isPrivatePayload(bytes)) {
+        if (!shareKey) {
+          bodyEl.innerHTML = `<p class="error" style="margin-top:16px">this seal is private. the
+            content only opens with the full share link, and this one is missing its key part.
+            ask the sender to resend the link.</p>`;
+          return;
+        }
+        const plain = await decryptPrivate(bytes, shareKey);
+        if (plain == null) {
+          bodyEl.innerHTML = `<p class="error" style="margin-top:16px">the key in this link does not
+            fit this seal. the link was probably truncated in transit. ask the sender to resend it.</p>`;
+          return;
+        }
+        text = plain;
+        isHex = false;
+      } else {
+        const decoded = decodePayload(slot.payload_b64);
+        text = decoded.text;
+        isHex = decoded.isHex;
+      }
       bodyEl.innerHTML = `
-        <p class="sv-content reveal-in ${decoded.isHex ? 'mono' : ''}">${esc(decoded.text)}</p>
+        <p class="sv-content reveal-in ${isHex ? 'mono' : ''}">${esc(text)}</p>
         <p class="muted">revealed ${esc(fmtUnix(reveal.revealed_at))}, slot ${slot.position} of ${reveal.slots.length}.
           <a class="link" href="#/condition/${encodeURIComponent(conditionId)}">see the full batch,
           operator shares and timings</a></p>`;

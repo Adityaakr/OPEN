@@ -13,10 +13,10 @@ function route(): void {
   if (!root) return;
   root.innerHTML = '';
   const hash = location.hash || '#/';
-  const seal = hash.match(/^#\/s\/([^/]+)\/([0-9a-f]{64})$/);
+  const seal = hash.match(/^#\/s\/([^/]+)\/([0-9a-f]{64})(?:\/([A-Za-z0-9_-]{16,64}))?$/);
   const match = hash.match(/^#\/condition\/(.+)$/);
   if (seal) {
-    cleanup = renderSealView(root, decodeURIComponent(seal[1]), seal[2]);
+    cleanup = renderSealView(root, decodeURIComponent(seal[1]), seal[2], seal[3]);
   } else if (match) {
     cleanup = renderCondition(root, decodeURIComponent(match[1]));
   } else {
