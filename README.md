@@ -1,6 +1,6 @@
-# add secrets to your dapp in minutes
+# OPEN - add fair reveals to your dapp in minutes
 
-### seal now. reveal on cue.
+### Open Programmable Encryption Network (OPEN)
 
 Commit-reveal without the second transaction. Sealed bids, hidden votes,
 fair launches, guaranteed openings: one call to seal, one guaranteed batch
