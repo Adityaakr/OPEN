@@ -29,6 +29,7 @@ export function fmtUnix(sec: number): string {
 export function fmtRelative(sec: number): string {
   const delta = sec - Math.floor(Date.now() / 1000);
   const abs = Math.abs(delta);
+  if (abs < 5) return 'just now';
   if (abs >= 86400) return fmtUnix(sec);
   const unit =
     abs >= 3600 ? `${Math.floor(abs / 3600)}h ${Math.floor((abs % 3600) / 60)}m` : abs >= 60 ? `${Math.floor(abs / 60)}m` : `${abs}s`;

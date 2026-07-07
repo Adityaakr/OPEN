@@ -1,4 +1,5 @@
 # bte — project model
+<!-- updated 2026-07-07 by prism-understand (share-link recipient flow + engagement audit) -->
 
 ## What this is
 Reveal-later encryption network ("seal now. reveal on cue.") on commonware's
@@ -60,6 +61,23 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
 - Dockerfile.web builds the pnpm workspace in 3 stages (wasm-pack -> pnpm -> caddy); .dockerignore added.
 - Browser e2e pattern: playwright script in scratchpad drives seal->reveal with screenshots; port 8080
   may be held by the user's other projects (cusp-fi vite) — use a compose port override (18080) for tests.
+
+## Share-link recipient flow (mapped 2026-07-07)
+- Link format: `${origin}${pathname}#/s/<conditionId>/<ctHash>` (packages/explorer/src/playground.ts:70);
+  router regex requires exact 64-hex ctHash (packages/explorer/src/main.ts:16).
+- Recipient page packages/explorer/src/pages/seal-view.ts: 2s status poll + 1s countdown tick
+  (seal-view.ts:99-100); reveal detected purely by `status === 'revealed'` (seal-view.ts:69), then
+  getReveal + slot match by ct_hash (seal-view.ts:75).
+- Deployment: hash routes never reach the server; Caddy is static try_files fallback
+  (docker/Caddyfile:11-15) so per-link OG previews are impossible without a server route.
+- Coordinator: CORS `*` (api.rs:70), rate limit 50 rps / 400 burst per IP (state.rs:16) — polling
+  is a non-issue. NO push machinery anywhere (no WS/SSE/webhook/email); only pull. The one hook
+  point for future push is the reveal write in engine.rs finalize_ready.
+- Engagement primitives ABSENT (all confirmed by grep): document.title never updated, no
+  favicon/OG/manifest in index.html, no service worker/Notification API, no localStorage
+  (no "my seals" persistence), no visibilitychange handling (background tabs throttle the
+  2s poll to ~1/min, so "opens by itself" is unreliable when hidden), no sender name/label
+  (conditions table has no creator/memo column, db.rs:16-25; kicker hardcoded seal-view.ts:13).
 
 ## Open items
 - No GitHub remote yet: CI/Actions and npm publish are validated locally only.

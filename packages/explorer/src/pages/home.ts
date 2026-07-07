@@ -1,6 +1,7 @@
 import { getCommittee, listConditions, type ConditionSummary } from '../api';
+import { forgetSeal, listSeals, markSealRevealed, type WatchedSeal } from '../attention';
 import { renderPlayground } from '../playground';
-import { esc, fmtRelative, statusChip, truncMiddle } from '../util';
+import { esc, fmtCountdown, fmtRelative, statusChip, truncMiddle } from '../util';
 
 const POLL_MS = 2000;
 
@@ -11,6 +12,10 @@ export function renderHome(root: HTMLElement): () => void {
       <p class="hero-sub">encrypt anything to this committee. when the cue fires, the whole
       batch becomes public at once. nothing is readable early, not even by the operators.</p>
       <div id="playground"></div>
+    </section>
+    <section class="section" id="seals-section" hidden>
+      <h2>your seals</h2>
+      <div id="seals" class="table-wrap"></div>
     </section>
     <section class="section">
       <h2>committee</h2>
@@ -36,28 +41,60 @@ export function renderHome(root: HTMLElement): () => void {
   const cleanupPlayground = renderPlayground(root.querySelector<HTMLElement>('#playground')!);
   const committeeEl = root.querySelector<HTMLElement>('#committee')!;
   const conditionsEl = root.querySelector<HTMLElement>('#conditions')!;
+  const sealsSection = root.querySelector<HTMLElement>('#seals-section')!;
+  const sealsEl = root.querySelector<HTMLElement>('#seals')!;
 
   void loadCommittee(committeeEl);
+
+  sealsEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-forget]');
+    if (!btn) return;
+    const [conditionId, ctHash] = (btn.dataset.forget ?? '').split('/');
+    if (conditionId && ctHash) forgetSeal(conditionId, ctHash);
+    renderSeals();
+  });
+
+  let lastConditions: ConditionSummary[] = [];
+  let lastSealsHtml = '';
+  const renderSeals = () => {
+    const seals = listSeals();
+    sealsSection.hidden = seals.length === 0;
+    if (seals.length === 0) return;
+    const html = sealsTable(seals, lastConditions);
+    if (html !== lastSealsHtml) {
+      sealsEl.innerHTML = html;
+      lastSealsHtml = html;
+    }
+  };
 
   let lastRendered = '';
   const poll = async () => {
     try {
       const conditions = await listConditions();
+      lastConditions = conditions;
+      // Anything the network says is revealed gets flagged in the local list.
+      for (const c of conditions) {
+        if (c.status === 'revealed') markSealRevealed(c.id);
+      }
       const html = conditionsTable(conditions);
       if (html !== lastRendered) {
         conditionsEl.innerHTML = html;
         lastRendered = html;
       }
+      renderSeals();
     } catch (e) {
       if (!lastRendered) {
         conditionsEl.innerHTML = `<p class="error">could not reach the coordinator (${esc(String(e))}). start it with <span class="mono">just compose-up</span>, then reload.</p>`;
       }
     }
   };
+  renderSeals();
   void poll();
   const timer = setInterval(() => void poll(), POLL_MS);
+  const tick = setInterval(renderSeals, 1000);
   return () => {
     clearInterval(timer);
+    clearInterval(tick);
     cleanupPlayground();
   };
 }
@@ -86,6 +123,46 @@ async function loadCommittee(committeeEl: HTMLElement): Promise<void> {
   } catch (e) {
     committeeEl.innerHTML = `<p class="error">could not load the committee (${esc(String(e))}). is a committee registered?</p>`;
   }
+}
+
+function sealsTable(seals: WatchedSeal[], conditions: ConditionSummary[]): string {
+  const now = Math.floor(Date.now() / 1000);
+  const byId = new Map(conditions.map((c) => [c.id, c]));
+  const rows = seals
+    .map((s) => {
+      const live = byId.get(s.conditionId);
+      const revealed = s.revealed || live?.status === 'revealed';
+      const firesAt = live?.fires_at ?? s.firesAt;
+      let state: string;
+      if (revealed) {
+        state = `<span class="chip chip-revealed">revealed</span>`;
+      } else if (live?.status === 'stalled') {
+        state = `<span class="chip chip-stalled">stalled</span>`;
+      } else if (firesAt != null) {
+        const secs = firesAt - now;
+        state = secs > 0
+          ? `<span class="num accent">${esc(fmtCountdown(secs))}</span>`
+          : `<span class="muted">opening…</span>`;
+      } else {
+        state = `<span class="muted">at block</span>`;
+      }
+      const href = `#/s/${encodeURIComponent(s.conditionId)}/${s.ctHash}`;
+      return `<tr>
+        <td><a class="link" href="${href}">${esc(s.label)}</a></td>
+        <td><span class="muted">${s.role === 'sent' ? 'you sealed it' : 'sealed for you'}</span></td>
+        <td>${state}</td>
+        <td class="muted">${esc(fmtRelative(s.addedAt))}</td>
+        <td><button type="button" class="seal-forget" title="remove from this list"
+                    data-forget="${esc(s.conditionId)}/${esc(s.ctHash)}">×</button></td>
+      </tr>`;
+    })
+    .join('');
+  return `<table>
+    <thead><tr>
+      <th>seal</th><th>who</th><th>opens</th><th>added</th><th></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 function conditionsTable(conditions: ConditionSummary[]): string {

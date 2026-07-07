@@ -14,6 +14,7 @@ import {
   type ConditionDetail,
   type Reveal,
 } from './api';
+import { markSealRevealed, rememberSeal } from './attention';
 import { decodePayload, esc, fmtCountdown, truncMiddle } from './util';
 
 const POLL_MS = 1500;
@@ -22,6 +23,15 @@ const ROUND_SECS = 60;
 const MIN_JOIN_SECS = 12;
 
 type Scenario = 'bid' | 'vote' | 'note';
+
+const SCENARIO_LABEL: Record<Scenario, string> = {
+  bid: 'your sealed bid',
+  vote: 'your hidden vote',
+  note: 'your time capsule',
+};
+
+/** ctHashes already written to the watched-seals list this session. */
+const watched = new Set<string>();
 
 interface PlaygroundRun {
   conditionId: string;
@@ -410,12 +420,23 @@ export function renderPlayground(host: HTMLElement): () => void {
     } catch {
       return; // transient; next poll retries
     }
+    if (!watched.has(run.ctHash)) {
+      watched.add(run.ctHash);
+      rememberSeal({
+        conditionId: run.conditionId,
+        ctHash: run.ctHash,
+        firesAt: condition.fires_at,
+        role: 'sent',
+        label: SCENARIO_LABEL[run.scenario],
+      });
+    }
     syncSteps();
     if (condition.status === 'revealed') {
       const reveal = await getReveal(run.conditionId).catch(() => null);
       if (reveal) {
         done = true;
         stopPolling();
+        markSealRevealed(run.conditionId);
         const batch = condition.batches?.[0];
         setStep(5, 'done');
         setStep(6, 'done',

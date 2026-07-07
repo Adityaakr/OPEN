@@ -246,6 +246,44 @@ h2 {
   display: none;
 }
 
+/* Actions under the seal-link countdown (calendar, notify). */
+.sv-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.sv-notify-on {
+  font-size: 14px;
+}
+
+/* The × that drops a row from "your seals". */
+.seal-forget {
+  appearance: none;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted, #6b7280);
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.seal-forget:hover {
+  color: var(--text, #111827);
+  background: #f3f4f6;
+}
+
 .pg-row input[type='text'] {
   flex: 1;
   min-width: 220px;

@@ -1,7 +1,20 @@
 // The recipient side of a shared seal: a dedicated page for ONE ciphertext.
-// Before the cue: a countdown over unreadable ciphertext. After: the content.
+// Before the cue: a countdown over unreadable ciphertext, plus ways to come
+// back (tab title ticker, calendar, notification). After: the content.
 // This is what a "seal link" opens.
 import { getCondition, getReveal, type ConditionDetail } from '../api';
+import {
+  enableNotify,
+  fmtCountdownShort,
+  gcalUrl,
+  icsHref,
+  markSealRevealed,
+  notifGranted,
+  notifSupported,
+  notifyReveal,
+  rememberSeal,
+  setTabState,
+} from '../attention';
 import { wireCopy } from '../playground';
 import { decodePayload, esc, fmtCountdown, fmtUnix, truncMiddle } from '../util';
 
@@ -33,26 +46,69 @@ export function renderSealView(root: HTMLElement, conditionId: string, ctHash: s
   let condition: ConditionDetail | null = null;
   let revealed = false;
   let failed = false;
+  let remembered = false;
+  let renderedStatus = '';
   let pollTimer: number | undefined;
   let tickTimer: number | undefined;
+
+  // The notify button lives inside re-renderable HTML; delegate the click.
+  bodyEl.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('#sv-notify');
+    if (!btn) return;
+    void enableNotify().then((ok) => {
+      btn.textContent = ok ? 'will notify you here' : 'notifications are blocked';
+      btn.disabled = true;
+    });
+  });
+
+  const notifyControl = (): string => {
+    if (!notifSupported()) return '';
+    if (notifGranted()) {
+      return `<span class="muted sv-notify-on">notifies you here when it opens</span>`;
+    }
+    return `<button type="button" class="btn" id="sv-notify">notify me when it opens</button>`;
+  };
+
+  const pendingActions = (firesAt: number): string => {
+    const url = location.href;
+    return `<p class="sv-actions">
+      ${notifyControl()}
+      <a class="btn" download="bte-seal.ics"
+         href="${esc(icsHref({ conditionId, firesAt, url }))}">add to calendar</a>
+      <a class="btn" target="_blank" rel="noopener"
+         href="${esc(gcalUrl({ firesAt, url }))}">google calendar</a>
+    </p>
+    <p class="field-hint">closing this tab is fine: the calendar event or the notification
+    brings you back the moment it opens.</p>`;
+  };
 
   const renderPending = () => {
     if (!condition || revealed || failed) return;
     if (condition.status === 'pending' && condition.fires_at != null) {
       const secs = condition.fires_at - Math.floor(Date.now() / 1000);
-      bodyEl.innerHTML = `
-        <p class="sv-countdown num">${esc(fmtCountdown(secs))}</p>
-        <p class="muted">unlocks ${esc(fmtUnix(condition.fires_at))}. this page will open by itself.</p>`;
+      if (renderedStatus !== 'pending') {
+        renderedStatus = 'pending';
+        bodyEl.innerHTML = `
+          <p class="sv-countdown num" id="sv-cd"></p>
+          <p class="muted">unlocks ${esc(fmtUnix(condition.fires_at))}. this page will open by itself.</p>
+          ${pendingActions(condition.fires_at)}`;
+      }
+      bodyEl.querySelector('#sv-cd')!.textContent = fmtCountdown(secs);
+      setTabState(secs > 0 ? `⏳ ${fmtCountdownShort(secs)}` : '⏳ opening', '🔒');
     } else if (condition.status === 'frozen') {
+      renderedStatus = 'frozen';
       const batch = condition.batches?.[0];
       const verified = batch?.verified_shares ?? 0;
       bodyEl.innerHTML = `
         <p class="sv-countdown num">opening…</p>
         <p class="muted">the cue fired. committee shares: ${verified} verified.</p>`;
+      setTabState('🔓 opening…', '🔓');
     } else if (condition.status === 'stalled') {
+      renderedStatus = 'stalled';
       bodyEl.innerHTML = `
         <p class="error">the reveal stalled: not enough operator shares arrived yet. it completes
         automatically when they do.</p>`;
+      setTabState('⏳ stalled', '🔒');
     }
   };
 
@@ -65,6 +121,17 @@ export function renderSealView(root: HTMLElement, conditionId: string, ctHash: s
         anything here. it may be for a different network, or the devnet was wiped.</p>`;
       return;
     }
+    if (!remembered) {
+      remembered = true;
+      rememberSeal({
+        conditionId,
+        ctHash,
+        firesAt: condition.fires_at,
+        role: 'received',
+        label: 'sealed for you',
+        revealed: condition.status === 'revealed',
+      });
+    }
     renderPending();
     if (condition.status === 'revealed' && !revealed) {
       const reveal = await getReveal(conditionId).catch(() => null);
@@ -72,6 +139,8 @@ export function renderSealView(root: HTMLElement, conditionId: string, ctHash: s
       revealed = true;
       if (pollTimer !== undefined) clearInterval(pollTimer);
       if (tickTimer !== undefined) clearInterval(tickTimer);
+      markSealRevealed(conditionId);
+      setTabState('🔓 revealed', '🔓');
       const slot = reveal.slots.find((s) => s.ct_hash === ctHash);
       labelEl.textContent = 'revealed';
       labelEl.classList.add('sealed-label-open');
@@ -85,6 +154,7 @@ export function renderSealView(root: HTMLElement, conditionId: string, ctHash: s
           reveal time. the rest of the batch opened fine.</p>`;
         return;
       }
+      notifyReveal('the countdown hit zero. click to read it.');
       const decoded = decodePayload(slot.payload_b64);
       bodyEl.innerHTML = `
         <p class="sv-content reveal-in ${decoded.isHex ? 'mono' : ''}">${esc(decoded.text)}</p>
@@ -95,11 +165,20 @@ export function renderSealView(root: HTMLElement, conditionId: string, ctHash: s
     }
   };
 
+  // Background tabs throttle timers to ~1/min; poll immediately on refocus so
+  // a returning user sees the truth without waiting out the throttle.
+  const onVisible = () => {
+    if (!document.hidden) void poll();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+
   void poll();
   pollTimer = window.setInterval(() => void poll(), POLL_MS);
   tickTimer = window.setInterval(renderPending, 1000);
   return () => {
     if (pollTimer !== undefined) clearInterval(pollTimer);
     if (tickTimer !== undefined) clearInterval(tickTimer);
+    document.removeEventListener('visibilitychange', onVisible);
+    setTabState(null);
   };
 }
