@@ -242,6 +242,10 @@ h2 {
   flex-wrap: wrap;
 }
 
+.pg-row[hidden] {
+  display: none;
+}
+
 .pg-row input[type='text'] {
   flex: 1;
   min-width: 220px;

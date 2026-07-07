@@ -156,6 +156,11 @@ export function renderPlayground(host: HTMLElement): () => void {
             <option value="120">reveal in 2m</option>
             <option value="600">reveal in 10m</option>
             <option value="3600">reveal in 1h</option>
+            <option value="7200">reveal in 2h</option>
+            <option value="10800">reveal in 3h</option>
+            <option value="21600">reveal in 6h</option>
+            <option value="43200">reveal in 12h</option>
+            <option value="86400">reveal in 24h</option>
             <option value="custom">pick a date…</option>
           </select>
           <button type="submit" class="btn btn-primary" id="pg-seal">seal it</button>
