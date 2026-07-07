@@ -36,8 +36,18 @@ lives in the README and docs instead.
 | green | `#16a34a` | revealed / success only |
 | red | `#dc2626` | stalled / rejected / corrupt only |
 
-No gradients, no shadows heavier than `0 1px 2px rgb(0 0 0 / 0.05)`, no dark
-mode (white is part of the identity).
+No gradients, no dark mode (white is part of the identity). Shadows are
+layered and quiet: cards `0 1px 2px 4% + 0 1px 3px 3%`, raised surfaces
+(playground, seal card) up to `0 4px 12px 5%`, primary buttons may carry a
+small accent-tinted shadow. Never heavier.
+
+Chrome (2026-07-07 refresh): sticky blurred header with the lock mark +
+"Open Explorer" + right-aligned nav; quiet footer with the product line.
+Micro-labels (table headers, stat labels, kickers) are 11-12px uppercase
+with 0.05em tracking; everything else stays sentence case. Display type
+(hero, countdowns) is 46-56px with -0.03em tracking. Focus rings are a
+3px 14% accent ring. Data tables sit in bordered 12px-radius wraps with
+washed headers.
 
 ## Typography
 
