@@ -7,7 +7,8 @@ _Status: active_ (renamed from bte 2026-07-07; design spec from the original bui
 - Product name: **OPEN**, the open programmable encryption network.
 - The explorer is **Open Explorer**.
 - Identity line: "the guaranteed reveal network"
-- Headline: "commit-reveal without the second transaction."
+- Headline: "your users commit. the network reveals."
+- Supporting line: "commit-reveal without the second transaction."
 - Speed line: "add fair reveals to your dapp in minutes."
 - Internal names stay: bte-* crates, bte-sdk on npm, /v0 API, wire magic BTE0.
   OPEN is the product; bte is the plumbing.
