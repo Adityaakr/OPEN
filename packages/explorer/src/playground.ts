@@ -124,7 +124,7 @@ export function renderPlayground(host: HTMLElement): () => void {
     <div class="playground card" id="pg">
       <form id="pg-form" autocomplete="off">
         <div class="scenario-picker-head">
-          <p class="scenario-kicker">try Peal</p>
+          <p class="scenario-kicker">Try Peal -</p>
           <p class="scenario-prompt">choose a use case, add something private, then watch it reveal on cue.</p>
         </div>
         <div class="chips" role="tablist" aria-label="choose a use case">
