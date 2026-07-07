@@ -13,7 +13,7 @@
    verified. Caption: "one 48-byte share per operator. for the whole batch."
 5. 22-28s: the board flips: hashes become plaintext bids, dummies dimmed,
    winner sorted to the top. Terminal shows "winner: bob with 815 👑".
-6. 28-30s: end card: "OPEN. your users commit. the network reveals." + repo URL + "v0. testnet
+6. 28-30s: end card: "Peal. your users commit. the network reveals." + repo URL + "v0. testnet
    toy."
 
 Alternate ending for the byzantine cut: at step 4 one share row flashes red
@@ -22,7 +22,7 @@ Caption: "one operator lied. one died. the reveal happened anyway."
 
 ## launch snippet block
 
-> **OPEN. your users commit. the network reveals.**
+> **Peal. your users commit. the network reveals.**
 >
 > commit-reveal without the second transaction. sealed bids, hidden votes,
 > fair reveals: one call to seal, guaranteed batch reveal, nothing readable

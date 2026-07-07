@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPEN protocol. how guaranteed reveal works</title>
-<meta name="description" content="A protocol-level walkthrough of OPEN: batched threshold encryption, the punctured setup, shares and pairing verification, private seals, architecture, and the production path.">
+<title>Peal protocol. how guaranteed reveal works</title>
+<meta name="description" content="A protocol-level walkthrough of Peal: batched threshold encryption, the punctured setup, shares and pairing verification, private seals, architecture, and the production path.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext x='32' y='52' font-size='52' text-anchor='middle'%3E%F0%9F%94%92%3C/text%3E%3C/svg%3E">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
 <style>
@@ -124,9 +124,9 @@
 <article>
 
 <header class="hero">
-  <p class="kicker">OPEN protocol reference, v0</p>
+  <p class="kicker">Peal protocol reference, v0</p>
   <h1>your users commit. the network reveals.</h1>
-  <p class="lede">OPEN is a programmable encryption network for information that must stay
+  <p class="lede">Peal is a programmable encryption network for information that must stay
   unreadable until a shared condition fires. A browser seals a payload once. A threshold
   committee later opens the whole batch, publicly and verifiably. Nobody returns for a second
   reveal transaction. This document explains how that works at the protocol level, how to build
@@ -147,7 +147,7 @@
   who lost never opens their commitment. The voter who changed their mind never reveals. Every
   application built on the pattern inherits reveal deadlines, griefing margins, and incomplete
   data, because revealing is voluntary.</p>
-  <p>OPEN removes the second step. The payload is encrypted, not hashed, and decryption is a
+  <p>Peal removes the second step. The payload is encrypted, not hashed, and decryption is a
   network duty rather than a user choice. Before the cue, fewer than <span class="mono">t</span>
   committee operators can recover nothing. After the cue, any <span class="mono">t</span> valid
   shares recover every slot in the frozen batch. The user's only action is the seal.</p>
@@ -207,7 +207,7 @@
 
 <section>
   <h2>the cryptography</h2>
-  <p>OPEN wraps Commonware's batched threshold encryption
+  <p>Peal wraps Commonware's batched threshold encryption
   (<a href="https://eprint.iacr.org/2026/760" rel="noopener">eprint 2026/760</a>, implemented in
   <a href="https://github.com/commonwarexyz/simple-bte" rel="noopener">simple-bte</a>) without
   modifying the scheme. The wrapper adds conditions, persistence, operator transport, share
@@ -307,7 +307,7 @@
   Operator nodes accept no inbound connections and never expose their keystores.</p>
 
   <figure>
-    <svg viewBox="0 0 720 380" width="100%" role="img" aria-label="OPEN architecture: dapp with SDK sends ciphertext through a TLS edge to the coordinator, which persists state, exchanges work and shares with five outbound-only operator nodes, and optionally anchors the reveal root onchain" font-family="Satoshi, system-ui, sans-serif">
+    <svg viewBox="0 0 720 380" width="100%" role="img" aria-label="Peal architecture: dapp with SDK sends ciphertext through a TLS edge to the coordinator, which persists state, exchanges work and shares with five outbound-only operator nodes, and optionally anchors the reveal root onchain" font-family="Satoshi, system-ui, sans-serif">
       <defs>
         <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
           <path d="M0 0.5 L7.5 4 L0 7.5" fill="none" stroke="#6b7280" stroke-width="1.3"/>
@@ -391,10 +391,10 @@
   wait for the reveal.</p>
   <pre><code>import { BteClient } from 'bte-sdk';
 
-const open = new BteClient({ url: 'https://open.example' });
+const peal = new BteClient({ url: 'https://peal.network' });
 
-const conditionId = await open.condition({ in: 60, tag: 'auction-v1' });
-const sealed = await open.seal(JSON.stringify({
+const conditionId = await peal.condition({ in: 60, tag: 'auction-v1' });
+const sealed = await peal.seal(JSON.stringify({
   app: 'auction-v1',
   conditionId,
   lotId: 'lot-42',
@@ -402,7 +402,7 @@ const sealed = await open.seal(JSON.stringify({
   nonce: crypto.randomUUID()
 }), conditionId);
 
-const reveal = await open.waitForReveal(conditionId);
+const reveal = await peal.waitForReveal(conditionId);
 const slot = reveal.slots.find((s) =&gt; s.ctHash === sealed.ctHash);
 
 if (!slot?.valid) throw new Error('sealed bid did not recover');
@@ -491,7 +491,7 @@ console.log(slot.text);</code></pre>
 <footer>
   <a href="https://eprint.iacr.org/2026/760" rel="noopener">the paper</a>
   <a href="https://github.com/commonwarexyz/simple-bte" rel="noopener">simple-bte</a>
-  <a href="https://github.com/Adityaakr/batched-threshold-encryption" rel="noopener">OPEN source</a>
+  <a href="https://github.com/Adityaakr/batched-threshold-encryption" rel="noopener">Peal source</a>
   <a href="https://bte-explorer-production.up.railway.app" rel="noopener">live explorer</a>
 </footer>
 

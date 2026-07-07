@@ -12,13 +12,13 @@ const sections = [
 
 export function renderProtocol(root: HTMLElement): () => void {
   const previousTitle = document.title;
-  document.title = 'OPEN protocol. architecture, use cases, and production path.';
+  document.title = 'Peal protocol. architecture, use cases, and production path.';
   root.innerHTML = `
     <article class="protocol-page">
       <header class="protocol-hero" id="overview">
-        <p class="protocol-kicker">OPEN protocol reference <span>v0</span></p>
+        <p class="protocol-kicker">Peal protocol reference <span>v0</span></p>
         <h1>one seal. one cue.<br>one public reveal.</h1>
-        <p class="protocol-lede">OPEN is a programmable encryption network for information that
+        <p class="protocol-lede">Peal is a programmable encryption network for information that
         must stay unreadable until a shared condition fires. A browser seals the payload once.
         A threshold committee later opens the complete batch. The user never returns for a
         second reveal transaction.</p>
@@ -52,9 +52,9 @@ export function renderProtocol(root: HTMLElement): () => void {
       <section class="protocol-section" id="use-cases">
         <p class="section-number">01</p>
         <div>
-          <p class="section-kicker">what OPEN unlocks</p>
+          <p class="section-kicker">what Peal unlocks</p>
           <h2>three products that need guaranteed reveal</h2>
-          <p class="section-intro">OPEN is most valuable when revealing is not optional. If a user
+          <p class="section-intro">Peal is most valuable when revealing is not optional. If a user
           can walk away when the result no longer suits them, ordinary commit-reveal breaks. These
           are the three strongest places to start once the network is production-ready.</p>
 
@@ -65,13 +65,13 @@ export function renderProtocol(root: HTMLElement): () => void {
                 <p class="use-case-eyebrow">verified records for agents and forecasters</p>
                 <h3>prove the complete record, not just the winning screenshots</h3>
                 <p class="use-case-lede">An agent seals every prediction before the event. When the
-                deadline arrives, OPEN reveals all of them, including the bad calls. The result is a
+                deadline arrives, Peal reveals all of them, including the bad calls. The result is a
                 track record that cannot be edited after the fact.</p>
                 <div class="plain-flow" aria-label="Agent prediction use case flow">
                   <span>agent seals a call</span><b>→</b><span>event reaches its deadline</span><b>→</b><span>every call opens</span><b>→</b><span>score becomes permanent</span>
                 </div>
                 <div class="use-case-details">
-                  <div><strong>why OPEN matters</strong><p>With normal commit-reveal, the agent can
+                  <div><strong>why Peal matters</strong><p>With normal commit-reveal, the agent can
                   hide a losing prediction by never revealing it. Guaranteed reveal removes that
                   choice, so the history is complete by construction.</p></div>
                   <div><strong>who uses it</strong><p>Agent platforms, prediction markets, research
@@ -91,14 +91,14 @@ export function renderProtocol(root: HTMLElement): () => void {
                 <p class="use-case-eyebrow">fair auctions, launches, procurement, and treasury trades</p>
                 <h3>hide the order book until everyone has committed</h3>
                 <p class="use-case-lede">Every participant submits one sealed bid. Nobody can see
-                the live book and react to someone else's price. At close, OPEN reveals the complete
+                the live book and react to someone else's price. At close, Peal reveals the complete
                 batch at once, the market computes one result, and settlement can verify it.</p>
                 <div class="plain-flow" aria-label="Sealed market use case flow">
                   <span>bidders seal prices</span><b>→</b><span>market closes</span><b>→</b><span>whole book opens</span><b>→</b><span>clear and settle</span>
                 </div>
                 <div class="use-case-details">
-                  <div><strong>why OPEN matters</strong><p>Open auctions invite sniping and copycat
-                  bids. Commit-reveal lets an unhappy bidder abandon the reveal. OPEN removes both
+                  <div><strong>why Peal matters</strong><p>Open auctions invite sniping and copycat
+                  bids. Commit-reveal lets an unhappy bidder abandon the reveal. Peal removes both
                   advantages because bids stay hidden and the committee reveals them automatically.</p></div>
                   <div><strong>where it fits</strong><p>Uniform-price token launches, second-price
                   auctions, NFT or domain sales, private procurement, liquidation auctions, and DAO
@@ -118,12 +118,12 @@ export function renderProtocol(root: HTMLElement): () => void {
               <div class="use-case-body">
                 <p class="use-case-eyebrow">shared infrastructure for applications</p>
                 <h3>give any app a future public reveal without a second transaction</h3>
-                <p class="use-case-lede">A developer sends ciphertext and a condition to OPEN. The
+                <p class="use-case-lede">A developer sends ciphertext and a condition to Peal. The
                 network handles committee coordination, batching, threshold shares, verification,
                 and publication. The application consumes the result instead of operating its own
                 cryptographic committee.</p>
                 <div class="plain-flow" aria-label="Reveal infrastructure use case flow">
-                  <span>app calls seal</span><b>→</b><span>OPEN holds ciphertext</span><b>→</b><span>cue fires</span><b>→</b><span>app reads verified reveal</span>
+                  <span>app calls seal</span><b>→</b><span>Peal holds ciphertext</span><b>→</b><span>cue fires</span><b>→</b><span>app reads verified reveal</span>
                 </div>
                 <div class="use-case-details">
                   <div><strong>what builders gain</strong><p>One SDK, one condition API, public proof
@@ -143,7 +143,7 @@ export function renderProtocol(root: HTMLElement): () => void {
             </article>
           </div>
 
-          <p class="use-case-conclusion"><strong>The common thread:</strong> OPEN does not merely
+          <p class="use-case-conclusion"><strong>The common thread:</strong> Peal does not merely
           hide information. It guarantees the moment when hidden information becomes shared truth.
           That is the primitive these products cannot safely reproduce with a user-operated reveal.</p>
         </div>
@@ -217,7 +217,7 @@ export function renderProtocol(root: HTMLElement): () => void {
         <div>
           <p class="section-kicker">cryptographic construction</p>
           <h2>the wire carries no early plaintext</h2>
-          <p class="section-intro">OPEN uses Commonware's batched threshold encryption and its
+          <p class="section-intro">Peal uses Commonware's batched threshold encryption and its
           Fujisaki-Okamoto byte-message transform. The protocol wrapper keeps the scheme intact
           and adds conditions, persistence, operator transport, verification, and public records.</p>
 
@@ -364,7 +364,7 @@ export function renderProtocol(root: HTMLElement): () => void {
           state machine and aggregator. Operator nodes accept no inbound traffic and never expose
           their keystores to the coordinator.</p>
 
-          <div class="architecture-map" role="img" aria-label="OPEN production architecture">
+          <div class="architecture-map" role="img" aria-label="Peal production architecture">
             <div class="arch-node arch-client"><small>public</small><strong>dapp + SDK</strong><span>wasm sealing</span></div>
             <span class="arch-arrow arch-a1">ciphertext</span>
             <div class="arch-node arch-edge"><small>public edge</small><strong>TLS + explorer</strong><span>rate limit, proxy</span></div>
@@ -458,10 +458,10 @@ export function renderProtocol(root: HTMLElement): () => void {
             <div class="code-title"><span>TypeScript</span><small>bte-sdk</small></div>
             <pre><code>import { BteClient } from 'bte-sdk';
 
-const open = new BteClient({ url: 'https://open.example' });
+const peal = new BteClient({ url: 'https://peal.network' });
 
-const conditionId = await open.condition({ in: 60, tag: 'auction-v1' });
-const sealed = await open.seal(JSON.stringify({
+const conditionId = await peal.condition({ in: 60, tag: 'auction-v1' });
+const sealed = await peal.seal(JSON.stringify({
   app: 'auction-v1',
   conditionId,
   lotId: 'lot-42',
@@ -469,7 +469,7 @@ const sealed = await open.seal(JSON.stringify({
   nonce: crypto.randomUUID()
 }), conditionId);
 
-const reveal = await open.waitForReveal(conditionId);
+const reveal = await peal.waitForReveal(conditionId);
 const slot = reveal.slots.find((item) => item.ctHash === sealed.ctHash);
 
 if (!slot?.valid) throw new Error('sealed bid did not recover');
@@ -532,7 +532,7 @@ console.log(slot.text);</code></pre>
           <div class="protocol-links">
             <a href="https://eprint.iacr.org/2026/760" target="_blank" rel="noopener">read the paper</a>
             <a href="https://github.com/commonwarexyz/simple-bte" target="_blank" rel="noopener">inspect simple-bte</a>
-            <a href="https://github.com/Adityaakr/batched-threshold-encryption" target="_blank" rel="noopener">inspect OPEN</a>
+            <a href="https://github.com/Adityaakr/batched-threshold-encryption" target="_blank" rel="noopener">inspect Peal</a>
           </div>
         </div>
       </section>

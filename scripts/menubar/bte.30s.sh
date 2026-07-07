@@ -16,7 +16,7 @@ set -u
 CONF="$HOME/.config/bte/watch"
 
 if [ ! -s "$CONF" ]; then
-  echo "🔒 open"
+  echo "🔒 peal"
   echo "---"
   echo "no seal configured | color=gray"
   echo "paste a seal link into ~/.config/bte/watch"
@@ -29,7 +29,7 @@ REST=${LINK#*#/s/}
 COND=${REST%%/*}
 
 if [ -z "$ORIGIN" ] || [ "$REST" = "$LINK" ]; then
-  echo "🔒 open ?"
+  echo "🔒 peal ?"
   echo "---"
   echo "watch file is not a seal link (expected .../#/s/<condition>/<cthash>) | color=red"
   exit 0
@@ -37,7 +37,7 @@ fi
 
 JSON=$(curl -fsS -m 10 "$ORIGIN/v0/conditions/$COND" 2>/dev/null)
 if [ -z "$JSON" ]; then
-  echo "🔒 open ?"
+  echo "🔒 peal ?"
   echo "---"
   echo "coordinator unreachable at $ORIGIN | color=gray"
   echo "open the seal | href=$LINK"

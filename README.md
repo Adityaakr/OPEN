@@ -1,6 +1,6 @@
-# OPEN - add fair reveals to your dapp in minutes
+# Peal - add fair reveals to your dapp in minutes
 
-### Open Programmable Encryption Network (OPEN)
+### Peal, the guaranteed reveal network (peal.network)
 
 Commit-reveal without the second transaction. Sealed bids, hidden votes,
 fair launches, guaranteed openings: one call to seal, one guaranteed batch

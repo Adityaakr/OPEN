@@ -1,21 +1,21 @@
-# Brand: OPEN
+# Brand: Peal
 
 _Status: active_ (renamed from bte 2026-07-07; design spec from the original build prompt)
 
 ## Naming
 
-- Product name: **OPEN**, the open programmable encryption network.
-- The explorer is **Open Explorer**.
+- Product name: **Peal**, the guaranteed reveal network. Domain: peal.network.
+- The explorer is **Peal Explorer**.
 - Identity line: "the guaranteed reveal network"
 - Headline: "your users commit. the network reveals."
 - Supporting line: "commit-reveal without the second transaction."
 - Speed line: "add fair reveals to your dapp in minutes."
-- Description: "add fair reveals to your dapp in minutes. seal data to the OPEN
+- Description: "add fair reveals to your dapp in minutes. seal data to the Peal
   committee; when the cue fires, the whole batch opens at once, guaranteed.
   nothing readable early, not even by operators. every share verified in
   public, every reveal on the record."
 - Internal names stay: bte-* crates, bte-sdk on npm, /v0 API, wire magic BTE0.
-  OPEN is the product; bte is the plumbing.
+  Peal is the product; bte is the plumbing.
 
 ## Voice
 

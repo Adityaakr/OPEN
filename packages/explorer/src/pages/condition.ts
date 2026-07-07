@@ -171,7 +171,7 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
         </dl>
         <p class="trust-note">the merkle root commits to every slot below, padding included.
         anyone can recompute it from the plaintexts and catch a tampered reveal.
-        <a class="link" download="open-batch-${esc(r.condition_id)}.json"
+        <a class="link" download="peal-batch-${esc(r.condition_id)}.json"
            href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(r, null, 2))}">download
         the batch json</a> to verify it yourself.</p>
         ${slotGrid(r)}

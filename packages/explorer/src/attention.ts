@@ -12,10 +12,10 @@ export function emojiIcon(emoji: string): string {
 
 let faviconEl: HTMLLinkElement | null = null;
 
-/** Put live state in the tab: "⏳ 2h 14m · OPEN" + a lock/unlock favicon.
+/** Put live state in the tab: "⏳ 2h 14m · Peal" + a lock/unlock favicon.
  * Pass null to restore the defaults. */
 export function setTabState(title: string | null, emoji?: string): void {
-  document.title = title ? `${title} · OPEN` : BASE_TITLE;
+  document.title = title ? `${title} · Peal` : BASE_TITLE;
   if (!faviconEl) {
     faviconEl = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!faviconEl) {
@@ -46,16 +46,16 @@ function icsStamp(unixSecs: number): string {
 }
 
 /** A data: href for an .ics event at the fire time, with a display alarm.
- * Use as <a href=... download="open-seal.ics">. */
+ * Use as <a href=... download="peal-seal.ics">. */
 export function icsHref(opts: { conditionId: string; firesAt: number; url: string }): string {
   const start = icsStamp(opts.firesAt);
   const end = icsStamp(opts.firesAt + 5 * 60);
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//OPEN//seal//EN',
+    'PRODID:-//Peal//seal//EN',
     'BEGIN:VEVENT',
-    `UID:open-${opts.conditionId}@open.seal`,
+    `UID:peal-${opts.conditionId}@peal.network`,
     `DTSTAMP:${icsStamp(Math.floor(Date.now() / 1000))}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,

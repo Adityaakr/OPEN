@@ -79,7 +79,7 @@ export function renderSealView(
     const url = location.href;
     return `<p class="sv-actions">
       ${notifyControl()}
-      <a class="btn" download="open-seal.ics"
+      <a class="btn" download="peal-seal.ics"
          href="${esc(icsHref({ conditionId, firesAt, url }))}">add to calendar</a>
       <a class="btn" target="_blank" rel="noopener"
          href="${esc(gcalUrl({ firesAt, url }))}">google calendar</a>

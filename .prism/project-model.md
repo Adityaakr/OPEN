@@ -45,6 +45,17 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
 - Piping `just …` through `tail` masks exit codes — verify demo results via
   API state, not pipe tails.
 
+## Docs
+- Standalone protocol article: docs/protocol.html (self-contained HTML, brand
+  tokens inline, SVG architecture diagram). Same content spine as #/protocol;
+  update BOTH when the protocol or SDK surface changes.
+- In-app protocol reference at #/protocol (packages/explorer/src/pages/protocol.ts,
+  nav in index.html): overview, use cases, lifecycle, cryptography (wire, FO,
+  punctured setup, pipelined recovery, merkle commitment), private seals,
+  architecture, production posture, integration (incl. tags), trust model.
+  Grounded in spec/index.md + engine.rs/merkle.rs; keep in sync when the
+  protocol or SDK surface changes. Styles live under .protocol-* in style.css.
+
 ## Decision log
 - 2026-07-07: product renamed to OPEN ("open programmable encryption network");
   explorer is "Open Explorer", identity "the guaranteed reveal network",

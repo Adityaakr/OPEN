@@ -9,7 +9,7 @@ export function renderHome(root: HTMLElement): () => void {
   root.innerHTML = `
     <section class="hero">
       <h1 class="hero-title">your users commit. the network reveals.</h1>
-      <p class="hero-sub">add fair reveals to your dapp in minutes. seal data to the OPEN
+      <p class="hero-sub">add fair reveals to your dapp in minutes. seal data to the Peal
       committee; when the cue fires, the whole batch opens at once, guaranteed. nothing
       readable early, not even by operators. every share verified in public, every reveal
       on the record.</p>
