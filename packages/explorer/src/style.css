@@ -1198,11 +1198,14 @@ input[type='datetime-local'] {
 }
 
 .protocol-article h1 {
-  font-size: 42px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: clamp(40px, 5vw, 50px);
   font-weight: 700;
-  letter-spacing: -0.025em;
-  line-height: 1.08;
-  margin: 0 0 18px;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-wrap: balance;
+  white-space: nowrap;
+  margin: 0 0 24px;
 }
 
 .protocol-article .lede {
@@ -1212,16 +1215,21 @@ input[type='datetime-local'] {
 }
 
 .protocol-article h2 {
-  font-size: 25px;
-  letter-spacing: -0.015em;
-  line-height: 1.22;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   margin: 72px 0 14px;
   scroll-margin-top: 76px;
 }
 
 .protocol-article h3 {
-  font-size: 16.5px;
-  font-weight: 700;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   margin: 34px 0 8px;
 }
 
@@ -1350,40 +1358,78 @@ input[type='datetime-local'] {
 .codecard .ck { color: #7e9cd8; }
 .codecard .cs { color: #d3a15d; }
 
-/* formula card: label column + large mono formulas */
+/* Formula flow: connected, numbered nodes instead of a dense two-column table. */
 .protocol-article .eq {
-  background: #fff;
-  border: 1px solid #e7e2d9;
-  border-radius: 16px;
-  margin: 24px 0;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgb(31 36 48 / 0.03);
+  position: relative;
+  display: grid;
+  gap: 12px;
+  margin: 28px 0;
+  padding-left: 52px;
+  counter-reset: formula-step;
+}
+
+.protocol-article .eq::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 18px;
+  width: 1px;
+  background: var(--accent-border);
 }
 
 .protocol-article .eq > div {
-  display: flex;
-  gap: 28px;
-  padding: 16px 26px;
-  align-items: baseline;
-  border-bottom: 1px solid #e7e2d9;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(128px, 160px) minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  min-height: 76px;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
-.protocol-article .eq > div:last-child {
-  border-bottom: none;
+.protocol-article .eq > div::before {
+  counter-increment: formula-step;
+  content: counter(formula-step, decimal-leading-zero);
+  position: absolute;
+  top: 50%;
+  left: -52px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--accent);
+  background: var(--accent-weak);
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  transform: translateY(-50%);
 }
 
 .protocol-article .eq span {
-  flex: 0 0 150px;
-  font-size: 14px;
-  color: var(--muted);
+  color: var(--accent);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  line-height: 1.35;
+  text-transform: uppercase;
 }
 
 .protocol-article .eq code {
   background: none;
   border: none;
   padding: 0;
-  font-size: 15.5px;
+  color: var(--text);
+  font-size: 14.5px;
   letter-spacing: 0.01em;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 /* warm table card: mono blue headers, mono blue key column */
@@ -1541,14 +1587,38 @@ input[type='datetime-local'] {
 
 @media (max-width: 640px) {
   .protocol-article h1 {
-    font-size: 31px;
+    font-size: 38px;
+    letter-spacing: -0.03em;
+    white-space: normal;
   }
 
   .protocol-article .cols {
     grid-template-columns: 1fr;
   }
 
-  .protocol-article .eq span {
-    flex-basis: 100px;
+  .protocol-article .eq {
+    gap: 10px;
+    padding-left: 42px;
+  }
+
+  .protocol-article .eq::before {
+    left: 14px;
+  }
+
+  .protocol-article .eq > div {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    min-height: 0;
+    padding: 14px 16px;
+  }
+
+  .protocol-article .eq > div::before {
+    left: -42px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .protocol-article .eq code {
+    font-size: 13px;
   }
 }

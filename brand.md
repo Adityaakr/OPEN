@@ -46,6 +46,7 @@ mode (white is part of the identity).
 ## Typography
 
 - UI: Satoshi via Fontshare (400/500/700), system-ui fallback.
+- Protocol article headings: Inter 600/700 via Google Fonts, system sans-serif fallback.
 - Hashes, ids, numbers: `ui-monospace` stack; `tabular-nums` globally.
 - Generous whitespace over boxes; hairline borders over fills.
 

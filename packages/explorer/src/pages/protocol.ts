@@ -3,20 +3,20 @@
 // diagrams. Same content spine as docs/protocol.html; every claim traces to
 // spec/index.md or the coordinator/SDK code. Keep both in sync.
 const sections = [
-  ['overview', 'overview'],
-  ['problem', 'the problem'],
-  ['compare', 'alternatives'],
-  ['lifecycle', 'lifecycle'],
-  ['engine', 'engine'],
-  ['crypto', 'cryptography'],
-  ['ceremony', 'ceremony'],
-  ['privacy', 'private seals'],
-  ['architecture', 'architecture'],
-  ['byzantine', 'byzantine drill'],
-  ['integration', 'building on it'],
-  ['numbers', 'numbers'],
-  ['production', 'production'],
-  ['trust', 'trust model'],
+  ['overview', 'Overview'],
+  ['problem', 'The problem'],
+  ['compare', 'Alternatives'],
+  ['lifecycle', 'Lifecycle'],
+  ['engine', 'Engine'],
+  ['crypto', 'Cryptography'],
+  ['ceremony', 'Ceremony'],
+  ['privacy', 'Private seals'],
+  ['architecture', 'Architecture'],
+  ['byzantine', 'Byzantine drill'],
+  ['integration', 'Building on it'],
+  ['numbers', 'Numbers'],
+  ['production', 'Production'],
+  ['trust', 'Trust model'],
 ] as const;
 
 export function renderProtocol(root: HTMLElement): () => void {
@@ -26,7 +26,7 @@ export function renderProtocol(root: HTMLElement): () => void {
     <article class="protocol-article">
       <header id="overview">
         <p class="kicker">Peal protocol reference · v0</p>
-        <h1>your users commit.<br>the network reveals.</h1>
+        <h1>How Peal guarantees every reveal.</h1>
         <p class="lede">Peal is a programmable encryption network for information that must stay
         unreadable until a shared condition fires. A browser seals a payload once. A threshold
         committee later opens the whole batch, publicly and verifiably. Nobody returns for a
@@ -48,7 +48,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </nav>
 
       <section>
-        <h2 id="problem">the problem</h2>
+        <h2 id="problem">The problem</h2>
         <p>Commit-reveal is the standard way to hide information on a public ledger until a
         deadline: users post a hash now and the preimage later. The pattern is sound cryptography
         wrapped around a broken assumption, that people will come back. The bidder who lost never
@@ -116,7 +116,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="compare">why threshold, not the alternatives</h2>
+        <h2 id="compare">Why threshold, not the alternatives</h2>
         <p>Guaranteed reveal has three other known constructions. Each carries a cost Peal was
         built to avoid, and each has real uses; the table is a scoping tool, not a dismissal.</p>
         <div class="tcard">
@@ -146,31 +146,31 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="lifecycle">what one payload goes through</h2>
+        <h2 id="lifecycle">What one payload goes through</h2>
         <ol class="steps">
           <li><div>
-            <h3>fetch committee parameters</h3>
+            <h3>Fetch committee parameters</h3>
             <p>The SDK downloads the public parameters, checks their SHA-256 digest, and caches
             them. The parameter set fixes n, t and B for the committee's lifetime, and the wasm
             module re-parses it independently, so a tampered parameter blob fails twice.</p>
             <span class="api">GET /v0/committees/:id</span>
           </div></li>
           <li><div>
-            <h3>seal in the browser</h3>
+            <h3>Seal in the browser</h3>
             <p>Wasm runs the Fujisaki-Okamoto transform locally. Only the sealed wire bytes ever
             leave the device; for a short text payload that is about 110 bytes total. The
             plaintext never exists outside the tab that typed it.</p>
             <span class="api">seal(payload, conditionId)</span>
           </div></li>
           <li><div>
-            <h3>content-address the ciphertext</h3>
+            <h3>Content-address the ciphertext</h3>
             <p>The coordinator parses the wire format, enforces the payload cap, computes
             ct_hash = sha256(wire), and stores the blob under its condition. The hash is the
             stable handle an application keeps; submission order does not choose the slot.</p>
             <span class="api">POST /v0/ciphertexts</span>
           </div></li>
           <li><div>
-            <h3>the cue fires, the batch freezes</h3>
+            <h3>The cue fires, the batch freezes</h3>
             <p>A wall-clock or block-height condition fires. The coordinator pads to 64 slots
             with self-sealed dummies, sorts every ciphertext by hash, assigns positions, and
             makes the batch immutable. Positions are a pure function of the ciphertext set: two
@@ -178,21 +178,21 @@ export function renderProtocol(root: HTMLElement): () => void {
             <span class="api">pending &rarr; frozen</span>
           </div></li>
           <li><div>
-            <h3>operators post one share each</h3>
+            <h3>Operators post one share each</h3>
             <p>Each outbound-only node polls for frozen work, decrypts its local keystore, and
             computes one 48-byte partial for the entire batch. The share is the same size
             whether the batch holds one real seal or sixty-four.</p>
             <span class="api">GET /v0/work &middot; POST /v0/shares</span>
           </div></li>
           <li><div>
-            <h3>verify, combine, recover</h3>
+            <h3>Verify, combine, recover</h3>
             <p>Every share must pass a public pairing check before it counts. Any t valid shares
             are Lagrange-combined once for the whole batch, and a per-slot integrity check
             isolates any mauled ciphertext to its own slot.</p>
             <span class="api">frozen &rarr; revealed</span>
           </div></li>
           <li><div>
-            <h3>publish an auditable record</h3>
+            <h3>Publish an auditable record</h3>
             <p>The reveal carries every slot, its validity bit, the full operator share log with
             timings, and a merkle root over position and payload. Anyone can recompute the root
             from the published batch.</p>
@@ -232,7 +232,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="engine">the condition engine</h2>
+        <h2 id="engine">The condition engine</h2>
         <p>The coordinator's scheduler is a 500 ms tick loop, not a callback registry. Each pass
         it freezes any pending wall-clock condition whose time has come, polls configured RPC
         endpoints with <span class="mono">eth_blockNumber</span> for block-height conditions,
@@ -248,7 +248,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="crypto">the cryptography</h2>
+        <h2 id="crypto">The cryptography</h2>
         <p>Peal wraps Commonware's batched threshold encryption
         (<a class="link" href="https://eprint.iacr.org/2026/760" target="_blank" rel="noopener">eprint 2026/760</a>
         by Guru Vamsi Policharla, implemented in
@@ -257,7 +257,7 @@ export function renderProtocol(root: HTMLElement): () => void {
         transport, share verification, and public records. Nothing below is novel cryptography;
         that is deliberate.</p>
 
-        <h3>the wire format</h3>
+        <h3>The wire format</h3>
         <p>A sealed ciphertext is a fixed header and a masked body. The cryptographic overhead
         is 64 bytes: a 48-byte KEM header and a 16-byte key mask. Framing adds 9 more.</p>
         <div class="eq">
@@ -273,7 +273,7 @@ export function renderProtocol(root: HTMLElement): () => void {
         whose re-derived scalar fails to reproduce the KEM header, so the slot is flagged
         corrupt and quarantined without poisoning the other 63.</p>
 
-        <h3>the punctured setup</h3>
+        <h3>The punctured setup</h3>
         <p>The ceremony publishes powers of a secret <span class="mono">&tau;</span> with one
         deliberate hole. Everyone can encrypt toward the missing power. Nobody holds it. That
         hole is the entire trick.</p>
@@ -300,7 +300,7 @@ export function renderProtocol(root: HTMLElement): () => void {
         domain are sized to B at the ceremony; a batch of three cannot be decrypted, so the
         coordinator pads with self-sealed dummies rather than shrinking the math.</p>
 
-        <h3>shares and public verification</h3>
+        <h3>Shares and public verification</h3>
         <div class="eq">
           <div><span>operator's share</span><code>pd&#11388; = &Sigma;&#7522; &sigma;&#11388;&#7522; &middot; ct&#7522;,&#8320;</code></div>
           <div><span>public check</span><code>e(pd&#11388;, g&#8322;) = &Pi;&#7522; e(ct&#7522;,&#8320;, v&#11388;&#7522;)</code></div>
@@ -312,7 +312,7 @@ export function renderProtocol(root: HTMLElement): () => void {
         fails the pairing equation, is recorded as rejected under the operator's identity, and
         never reaches the threshold. Verification needs no secrets, so anyone can re-run it.</p>
 
-        <h3>pipelined recovery</h3>
+        <h3>Pipelined recovery</h3>
         <p>The expensive part of decryption does not wait for operators. The FFT cross-terms
         (<span class="mono">O(B log B)</span> group operations plus
         <span class="mono">O(B)</span> pairings, never the naive <span class="mono">B&sup2;</span>
@@ -324,7 +324,7 @@ export function renderProtocol(root: HTMLElement): () => void {
         for a full 64-slot batch, so the user-visible gap between cue and plaintext is the share
         round-trip, not the math.</p>
 
-        <h3>the commitment</h3>
+        <h3>The commitment</h3>
         <div class="eq">
           <div><span>leaf</span><code>sha256(position_le_u32 || payload)</code></div>
           <div><span>parent</span><code>sha256(left || right), odd node promoted</code></div>
@@ -338,7 +338,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="ceremony">the ceremony and the keys</h2>
+        <h2 id="ceremony">The ceremony and the keys</h2>
         <p>v0 key generation is a single offline dealer running
         <span class="mono">simple-bte::crs::setup</span>: it samples
         <span class="mono">&tau;</span>, computes the punctured public parameters, Shamir-deals
@@ -360,7 +360,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="privacy">two privacy layers</h2>
+        <h2 id="privacy">Two privacy layers</h2>
         <p><strong>The network proves when. The link decides who.</strong> Threshold reveal is
         deliberately public: after the cue, every slot's plaintext is on the record so anyone
         can verify the batch. That is exactly right for auctions and votes, whose fairness
@@ -380,7 +380,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="architecture">architecture</h2>
+        <h2 id="architecture">Architecture</h2>
         <p>The design separates the public edge from secret-bearing operators. The browser and
         explorer are public. The coordinator is a scheduler and aggregator that never sees
         pre-cue plaintext. Operator nodes accept no inbound connections and never expose their
@@ -455,7 +455,7 @@ export function renderProtocol(root: HTMLElement): () => void {
           </table>
         </div>
 
-        <h3>the public API, in one table</h3>
+        <h3>The public API, in one table</h3>
         <div class="tcard">
           <table>
             <thead><tr><th>endpoint</th><th>caller</th><th>purpose</th></tr></thead>
@@ -476,7 +476,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="byzantine">the byzantine drill</h2>
+        <h2 id="byzantine">The byzantine drill</h2>
         <p>The claim that verification catches liars is tested, not asserted. The repo ships a
         drill (<span class="mono">just demo-byzantine</span>) that runs the full sealed-bid
         auction with two failures injected at once: operator 2 runs a byzantine build that
@@ -491,7 +491,7 @@ export function renderProtocol(root: HTMLElement): () => void {
       </section>
 
       <section>
-        <h2 id="integration">building on it</h2>
+        <h2 id="integration">Building on it</h2>
         <p>The product path is four calls: create a condition, seal locally, store the returned
         hash, wait for the reveal.</p>
 
@@ -542,7 +542,7 @@ console.log(slot.text);</code></pre>
           fragment.</li>
         </ul>
 
-        <h3>failure behavior is explicit</h3>
+        <h3>Failure behavior is explicit</h3>
         <div class="tcard">
           <table>
             <thead><tr><th>failure</th><th>behavior</th></tr></thead>
@@ -559,7 +559,7 @@ console.log(slot.text);</code></pre>
       </section>
 
       <section>
-        <h2 id="numbers">the numbers</h2>
+        <h2 id="numbers">The numbers</h2>
         <p>Measured on the public devnet (n = 5, t = 3, B = 64), not estimated.</p>
         <div class="tcard">
           <table>
@@ -579,7 +579,7 @@ console.log(slot.text);</code></pre>
       </section>
 
       <section>
-        <h2 id="production">production posture</h2>
+        <h2 id="production">Production posture</h2>
         <p>The current stack runs a transparent public devnet: a real threshold committee,
         public share verification, durable state on a mounted volume, recovery after restart,
         TLS, rate limiting, and honest stall states. The decisive blocker for real value is the
@@ -601,10 +601,10 @@ console.log(slot.text);</code></pre>
       </section>
 
       <section>
-        <h2 id="trust">the trust model, stated precisely</h2>
+        <h2 id="trust">The trust model, stated precisely</h2>
         <div class="cols">
           <div>
-            <h3>you do not trust</h3>
+            <h3>You do not trust</h3>
             <ul>
               <li>the coordinator with pre-cue plaintext</li>
               <li>any coalition smaller than the threshold</li>
@@ -613,7 +613,7 @@ console.log(slot.text);</code></pre>
             </ul>
           </div>
           <div>
-            <h3>v0 still requires trust</h3>
+            <h3>V0 still requires trust</h3>
             <ul>
               <li>the dealer did not retain or leak &tau;</li>
               <li>at least t operators answer after the cue</li>
