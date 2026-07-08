@@ -62,6 +62,18 @@ fixed a real SDK bug (bare `fetch` reference throws Illegal invocation in
 browsers). Dockerfile.web now builds the workspace SDK (wasm -> pnpm ->
 caddy). All gates re-run green.
 
+## Post-ship: seal/reveal 3D animation (2026-07-08)
+
+The playground seal step is now a perspective 3D scene (ceremony.ts): the
+secret encrypts in-tab, the key splits into n shares, one flies to each
+operator on a slowly orbiting committee ring carrying the Peal logo, and
+operators light green as their real shares verify. The recipient seal link
+(seal-view.ts) reassembles the secret: the committee's shares stream back
+into the Peal core and the plaintext materialises out of ciphertext-like
+noise (reassemble.ts), a beat that always plays on reveal. All motion is
+gated behind prefers-reduced-motion; the countdown is unchanged. Verified
+headlessly against the local devnet (seal, recipient reassembly, descramble).
+
 ## Decisions log
 
 - Explorer required CORS: hand-rolled middleware in api.rs (no new deps).
