@@ -1,4 +1,6 @@
 # bte — project model
+<!-- updated 2026-07-12 (timing trust hole; Railway volume fix; landing prompt handoff) -->
+<!-- updated 2026-07-09 by prism-understand (OG/social-card feasibility for shared links) -->
 <!-- updated 2026-07-07 by prism-understand (share-link recipient flow + engagement audit) -->
 
 ## What this is
@@ -49,6 +51,12 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
 - Standalone protocol article: docs/protocol.html (self-contained HTML, brand
   tokens inline, SVG architecture diagram). Same content spine as #/protocol;
   update BOTH when the protocol or SDK surface changes.
+- Code-side deep-dive: docs/how-peal-is-built.html (self-contained HTML, Inter +
+  JetBrains Mono, brand tokens inline, hand-authored SVG architecture diagram).
+  Teaches the whole build crate-by-crate: bte-crypto (7-fn lifecycle), engine
+  state machine, node/keystore, wasm bridge, SDK, merkle+anchor, trust trade-offs.
+  Grounded 2026-07-08 in lib.rs/engine.rs/api.rs/merkle.rs/node/cli/wasm/sdk.
+  Keep in sync when the crate surface or trust model changes.
 - In-app protocol reference at #/protocol (packages/explorer/src/pages/protocol.ts,
   nav in index.html): overview, use cases, lifecycle, cryptography (wire, FO,
   punctured setup, pipelined recovery, merkle commitment), private seals,
@@ -149,6 +157,34 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
   2s poll to ~1/min, so "opens by itself" is unreliable when hidden), no sender name/label
   (conditions table has no creator/memo column, db.rs:16-25; kicker hardcoded seal-view.ts:13).
 
+## Social / OG link cards — feasibility (mapped 2026-07-09)
+- ASK: show a LIVE ticking reveal timer inside an X/Twitter link preview when a Peal link is pasted.
+- EXTERNAL VERDICT: impossible on X. In-timeline cards are a static image (twitter:image/og:image,
+  JPG/PNG/WebP; GIF flattened to first frame; NO JS/video/animation; Twitterbot doesn't run JS).
+  Best achievable = a dynamic PNG "reveals in Xh Ym" SNAPSHOT frozen at scrape time; X caches it
+  ~7 days and doesn't re-scrape on a schedule, so it can go stale (show a card that reads sanely
+  after the reveal too). Live in-feed refresh is a Farcaster Frame capability, not X.
+- CURRENT STATE: pure Vite SPA, no SSR/edge. Single static index.html for all routes
+  (docker/Caddyfile try_files → /index.html). Meta tags are global + static in
+  packages/explorer/index.html:6-13 — has og:title/description + `twitter:card=summary` (not
+  large_image) and NO og:image/twitter:image at all. No OG-image/screenshot/satori/resvg code
+  anywhere (grep-confirmed). Coordinator serves JSON only under /v0.
+- STRUCTURAL BLOCKER (the real one): all shareable ids live in the URL FRAGMENT (after `#`),
+  which scrapers never receive. Router is hash-based (main.ts:13-38). Share link builder
+  `sealLink()` playground.ts:92-95 → `…#/s/<conditionId>/<ctHash>/<shareKey>`. So an edge/scraper
+  literally can't tell which seal a link points to.
+- PRIVACY CONSTRAINT: the trailing `<shareKey>` fragment segment is the AES-128-GCM decryption key
+  (privacy.ts:26-38, "travels ONLY in the hash fragment, never sent to any server"). Moving seal
+  identifiers to a server-visible path to enable OG would LEAK the key. Per-SEAL private-capsule OG
+  is therefore off the table by design.
+- WHAT IS ACHIEVABLE: a per-CONDITION snapshot card. The condition id is PUBLIC (shown on home list,
+  GET /v0/conditions/:id) and the countdown source `fires_at` (unix secs) is available server-side
+  (db.rs:20, returned api.rs:265; NULL for at_block conditions — no absolute time). REQUIRES:
+  (1) a server-visible id — new path/query like `/c/<id>` or `?c=<id>` (not just `#/condition/<id>`);
+  (2) an edge/serverless renderer (none today) that reads fires_at and renders a PNG; (3) per-request
+  <head> meta injection for that route. This is net-new infra, not a tweak.
+- No "share to X"/intent UI exists today; only a "copy share link" button (playground.ts:653,788).
+
 ## Decision log
 - 2026-07-08 (prism-plan): next-phase direction = "earn the network thesis on ONE
   painkiller." Refuted BOTH extremes: (a) traction-first on agent track records while
@@ -174,10 +210,95 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
   single-dealer hole is removed (setup ceremony or DKG). It is a launch-blocker, not a
   caveat.
 
+## INVARIANT (2026-07-12): the deadline is NOT enforced, it is asserted
+- SECOND trust hole, distinct from the single-dealer one above and NOT documented in
+  spec/index.md (which only names the dealer at line 15) or #/protocol (which says "the
+  cue fires: wall clock or block height" without saying WHOSE clock).
+- at_time: the ONLY thing gating a reveal is `fires_at <= unix_now()` in the coordinator's
+  own process (engine.rs:29-39, db.rs:85 SystemTime::now). Nothing else checks it.
+- OPERATORS NEVER CHECK A CLOCK. bte-node polls /v0/work, decodes the 48-byte headers it is
+  handed, calls partial(), posts the share (node/src/main.rs:150-193). It never reads
+  fires_at, never fetches the condition, never looks at a clock or chain. It signs whatever
+  it is given. /v0/work does not even filter on status='frozen' — only "a batch row exists
+  and is not finalized" (api.rs:377-379).
+- CONSEQUENCE: t-of-n buys NOTHING on timing. It only stops the coordinator decrypting with
+  ZERO cooperation, and cooperation is free — a compromised/buggy coordinator inserts a batch
+  row and t honest nodes cheerfully reveal a capsule whose deadline is a week out.
+- at_block is WEAKER, not stronger: one unauthenticated `eth_blockNumber` POST (engine.rs:97-113)
+  read by the coordinator alone. Takes the LATEST head at face value (no finalized tag, no
+  confirmations, no block hash, no reorg handling, no second source). freeze is irreversible,
+  so a reorg or a lying RPC = permanent early reveal. It ADDS a trusted party (the RPC) without
+  removing the coordinator. NOT running a node — just reqwest posting one JSON-RPC method.
+  No RPC configured for a chain id => condition stays pending FOREVER, silently (engine.rs:75-77).
+- Honest guarantee ladder today: (1) no reveal without t shares — CRYPTO. (2) operators only
+  share after the deadline — NOTHING. (3) revealed payloads match what was committed — merkle
+  root, if anchored. (4) ciphertext existed before block N — chain, if commit() was called.
+- TO CLOSE IT (both halves required, either alone is useless): (a) node evaluates the condition
+  itself before partial()ing — /v0/work returns kind/fires_at/height and the node refuses until
+  ITS OWN clock/RPC agrees; AND (b) the condition record must be immutable + identical for every
+  operator, else a malicious coordinator just tells each node a different fires_at — so sign the
+  condition at creation under a key nodes pin, or publish conditionId=>fires_at on-chain.
+  THE DEADLINE IS THE ONE PROTOCOL INPUT THAT LIVES ONLY IN THE COORDINATOR'S SQLITE FILE.
+
+## Railway persistence — SOLVED 2026-07-12 (do not regress)
+- ROOT CAUSE of "every deploy wipes all conditions": /bte-state was a bare `mkdir` in the image
+  (Dockerfile.railway:60) with NO volume. Railway gives each deploy a fresh container fs, so
+  /bte-state came back empty every time. That empties bte.db (start-railway.sh:10) AND deletes
+  ceremony/params.bin, which trips the `if [ ! -f ... ]` guard (start-railway.sh:27) and RE-RUNS
+  THE TRUSTED-DEALER CEREMONY => brand-new committee id. Old conditions weren't just hidden, they
+  became permanently unrevealable (their committee's operator keys no longer exist anywhere).
+- FIX (applied): Railway volume mounted at `/bte-state` on the bte-explorer service. Volumes are
+  DASHBOARD-ONLY (not expressible in railway.json) and are created from the PROJECT CANVAS
+  (Cmd+K / right-click canvas), NOT the service Settings tab — Settings search for "volume"
+  finds nothing, which is what made this hard to find.
+- The mount path MUST equal STATE_DIR in docker/start-railway.sh:7 (`${BTE_STATE_DIR:-/bte-state}`).
+  Change one without the other and the ceremony re-runs and orphans every seal.
+- VERIFIED 2026-07-12: committee 2d7ce50d097b08665ceab77f735967bc45e0a1179803d76fec50f445b8738f9b
+  (created_at 1783801633) survived a redeploy unchanged => ceremony skipped => volume holding.
+  THE PERSISTENCE TEST IS: `curl -sS https://peal.adibuilds.in/v0/committees` before and after a
+  deploy. Same id = good. New id = state was wiped. A fresh committee id is ALSO what a broken
+  volume looks like, so one deploy alone proves nothing — you need the id to survive a SECOND one.
+- Attaching the volume cost a one-time reset: committee c36dec96 + 21 conditions were lost. This
+  was unavoidable (the volume starts empty, so the ceremony ran once more into it).
+- WHAT WOULD STILL WIPE IT: deleting/detaching the volume; changing the mount path; deleting and
+  recreating the service; setting BTE_STATE_DIR to anything but /bte-state.
+- NOW-PERMANENT RISKS (previously masked by the constant wipes): the 5 operator keystores now sit
+  on that volume encrypted with the DEFAULT passphrase `railway-devnet-v0` (start-railway.sh:9,
+  BTE_KEYSTORE_PASS unset on the service) which is hardcoded in a public repo; and there is NO
+  BACKUP — one SQLite file on one volume, lose it and every seal is unrevealable forever.
+- docs/deploy-railway.md IS STALE: it describes a 7-service topology (1 coordinator + 5 nodes +
+  1 web, private networking) and claims root railway.json targets Dockerfile.web. The LIVE shape
+  is the all-in-one Dockerfile.railway (coordinator + in-container ceremony + 5 nodes + Caddy in
+  ONE container, start-railway.sh). The doc never mentions the volume at all — the exact gap that
+  cost the 21 conditions. bte-sdk / bte-examples / bte-demo-* are a library and scripts, NOT
+  servers; only bte-explorer needs a domain (Caddy proxies /v0 -> localhost:8090, Caddyfile:6-14).
+
+## Landing prompt -> capsule handoff (2026-07-12)
+- The hero prompt used to DISCARD what the visitor typed (landing.ts just set location.hash),
+  despite a comment claiming it "rides the hash into the app" — so they answered "what should
+  stay sealed?" twice, once on the hero and again at the playground's #pg-secret.
+- Now: landing.ts stashes the trimmed text via putSealDraft(); playground.ts calls takeSealDraft()
+  right after renderFields(), selects the time-capsule tab, prefills #pg-secret, focuses it, and
+  scrolls it into view.
+- The draft rides sessionStorage (packages/explorer/src/draft.ts), NOT the URL: the text is the
+  user's SECRET, and the hash would persist it in browser history and in any copied link. Cleared
+  on read so a reload never resurrects it. Landing input capped at maxlength=200 to match #pg-secret.
+- Reveal timing still defaults to 60s on arrival from the landing page (may be wrong for someone
+  sealing a launch date — open question).
+
 ## Open items
-- No GitHub remote yet: CI/Actions and npm publish are validated locally only.
+- Remote IS live now: github.com/Adityaakr/peal-network (main deploys to Railway ->
+  peal.adibuilds.in). Supersedes the old "no GitHub remote yet" note.
+- Live devnet has NO chain contact: SEPOLIA_RPC_URL is unset on the service, so every condition
+  actually firing today is at_time on the coordinator's wall clock. fire_at_block is dead code in
+  prod until an RPC is configured.
 - Sepolia run of the anchored demo pending SEPOLIA_RPC_URL +
   funded ANCHOR_PRIVATE_KEY (anvil path verified).
+- Set BTE_KEYSTORE_PASS on the Railway service (currently the public default) and get a backup
+  story for the /bte-state volume — both are now permanent risks, see the persistence section.
+- Harden start-railway.sh: a missing params.bin is treated as "first boot, run the ceremony" when
+  it actually means "the volume is gone and I am about to orphan every seal". Should fail loudly.
+- Rewrite docs/deploy-railway.md to match the live all-in-one shape + the required volume.
 - Public devnet: DEVNET_URL in the SDK is a placeholder
   (`https://devnet.bte.invalid`); update when a devnet exists + set the
   playground URL in docs/launch.md.
