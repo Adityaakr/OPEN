@@ -30,6 +30,15 @@ const ROUND_SECS = 30;
 const POLL_MS = 1500;
 const SLIP_BPS: Record<string, bigint> = { '0.001': 10n, '0.005': 50n, '0.01': 100n, '0.03': 300n };
 
+type Sym = 'USDC' | 'ETH';
+const COIN: Record<Sym, string> = {
+  USDC: '<i class="mp-coin mp-coin-usdc"></i>USDC',
+  ETH: '<i class="mp-coin mp-coin-eth"></i>ETH',
+};
+/** Sensible default pay amount per token, both ~ $250k so either direction
+ * gets sandwiched on the deep pool. */
+const DEFAULT_AMT: Record<Sym, string> = { USDC: '250000', ETH: '80' };
+
 const usd2 = (n: number) =>
   n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 const num = (s: string, dp = 4) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
@@ -42,9 +51,16 @@ export function renderMempool(root: HTMLElement): () => void {
   let cfg: MempoolConfig | null = null;
   let dead = false;
   let busy = false;
+  /** true = pay USDC, receive ETH; false = pay ETH, receive USDC. */
+  let usdcToEth = true;
   const timers: number[] = [];
   let sandwich: Scene | null = null;
   let vault: Scene | null = null;
+
+  const payToken = (): Sym => (usdcToEth ? 'USDC' : 'ETH');
+  const recvToken = (): Sym => (usdcToEth ? 'ETH' : 'USDC');
+  /** Value an amount of `sym` in USD, given the pool mid price (USDC per ETH). */
+  const toUsd = (amount: number, sym: Sym, price: number) => (sym === 'USDC' ? amount : amount * price);
 
   root.innerHTML = `
     <section class="mp">
@@ -91,19 +107,21 @@ export function renderMempool(root: HTMLElement): () => void {
             <div class="mp-swap-field">
               <div class="mp-field-top"><span>You pay</span></div>
               <div class="mp-field-main">
-                <input type="number" id="mp-pay" value="250000" min="100" max="5000000" step="10000"
+                <input type="number" id="mp-pay" value="250000" min="0.0001" max="50000000" step="10000"
                        autocomplete="off" inputmode="decimal" />
-                <span class="mp-token"><i class="mp-coin mp-coin-usdc"></i>USDC</span>
+                <span class="mp-token" id="mp-pay-token">${COIN.USDC}</span>
               </div>
             </div>
 
-            <div class="mp-swap-mid"><span class="mp-swap-swapicon" aria-hidden="true"></span></div>
+            <div class="mp-swap-mid">
+              <button type="button" class="mp-swap-swapicon" id="mp-flip" aria-label="flip the pair"></button>
+            </div>
 
             <div class="mp-swap-field">
               <div class="mp-field-top"><span>You receive</span></div>
               <div class="mp-field-main">
                 <span class="mp-recv" id="mp-recv">0.0</span>
-                <span class="mp-token"><i class="mp-coin mp-coin-eth"></i>ETH</span>
+                <span class="mp-token" id="mp-recv-token">${COIN.ETH}</span>
               </div>
             </div>
 
@@ -158,20 +176,25 @@ export function renderMempool(root: HTMLElement): () => void {
     const recvEl = appEl.querySelector<HTMLElement>('#mp-recv')!;
     const rateEl = appEl.querySelector<HTMLElement>('#mp-rate')!;
     const minEl = appEl.querySelector<HTMLElement>('#mp-min')!;
+    const payTokEl = appEl.querySelector<HTMLElement>('#mp-pay-token')!;
+    const recvTokEl = appEl.querySelector<HTMLElement>('#mp-recv-token')!;
     const go = appEl.querySelector<HTMLButtonElement>('#mp-go')!;
 
     const refreshQuote = async () => {
       if (busy) return;
       try {
         const { pealPool } = await getState();
+        // Direction: paying USDC spends base for quote; paying ETH spends quote
+        // for base.
+        const [rIn, rOut] = usdcToEth ? [pealPool.base, pealPool.quote] : [pealPool.quote, pealPool.base];
         const amountIn = toWad(Number(payEl.value) || 0);
-        const out = getAmountOut(amountIn, pealPool.base, pealPool.quote);
+        const out = getAmountOut(amountIn, rIn, rOut);
         const slip = SLIP_BPS[slipEl.value] ?? 50n;
         const floor = (out * (10000n - slip)) / 10000n;
         recvEl.textContent = num(fromWad(out));
-        const price = Number(payEl.value) / Number(fromWad(out) || '1');
+        const price = Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote));
         rateEl.textContent = `1 ETH = ${price.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`;
-        minEl.textContent = `${num(fromWad(floor))} ETH`;
+        minEl.textContent = `${num(fromWad(floor))} ${recvToken()}`;
       } catch {
         /* transient */
       }
@@ -179,6 +202,15 @@ export function renderMempool(root: HTMLElement): () => void {
     payEl.addEventListener('input', () => void refreshQuote());
     slipEl.addEventListener('change', () => void refreshQuote());
     void refreshQuote();
+
+    appEl.querySelector<HTMLButtonElement>('#mp-flip')!.addEventListener('click', () => {
+      if (busy) return;
+      usdcToEth = !usdcToEth;
+      payTokEl.innerHTML = COIN[payToken()];
+      recvTokEl.innerHTML = COIN[recvToken()];
+      payEl.value = DEFAULT_AMT[payToken()];
+      void refreshQuote();
+    });
 
     go.addEventListener('click', () => {
       if (busy) return;
@@ -233,11 +265,15 @@ export function renderMempool(root: HTMLElement): () => void {
     go.textContent = 'sending…';
 
     const { pealPool } = await getState();
+    const [rIn, rOut] = usdcToEth ? [pealPool.base, pealPool.quote] : [pealPool.quote, pealPool.base];
     const amountIn = toWad(amount);
-    const fair = getAmountOut(amountIn, pealPool.base, pealPool.quote);
+    const fair = getAmountOut(amountIn, rIn, rOut);
     const slip = SLIP_BPS[slipKey] ?? 50n;
     const minOut = (fair * (10000n - slip)) / 10000n;
     const midPrice = Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote));
+    const baseToQuote = usdcToEth;
+    const recvUnit = recvToken();
+    const payUnit = payToken();
 
     // Transition: swap card out, comparison in.
     const swapWrap = appEl.querySelector<HTMLElement>('#mp-swap-wrap')!;
@@ -265,7 +301,7 @@ export function renderMempool(root: HTMLElement): () => void {
 
     // Seal the peal order through the real coordinator.
     const conditionId = await client.condition({ in: ROUND_SECS, tag: 'mempool' });
-    const payload = encodeOrder({ trader: c.relayer, baseToQuote: true, amountIn, minOut, to: c.relayer });
+    const payload = encodeOrder({ trader: c.relayer, baseToQuote, amountIn, minOut, to: c.relayer });
     const sealed = await client.seal(payload, conditionId);
     if (dead) return;
 
@@ -277,12 +313,12 @@ export function renderMempool(root: HTMLElement): () => void {
     const pub = await submitPublicSwap({
       amountIn: String(amount),
       minOut: fromWad(minOut),
-      baseToQuote: true,
+      baseToQuote,
     });
 
     const [pubOut, pealOut] = await Promise.all([
-      pollPublic(pub.orderId, fair, midPrice, publicRes),
-      pollPeal(conditionId, fair, pealRes),
+      pollPublic(pub.orderId, fair, { recvUnit, payUnit, price: midPrice }, publicRes),
+      pollPeal(conditionId, fair, recvUnit, pealRes),
     ]);
     if (dead) return;
 
@@ -290,7 +326,7 @@ export function renderMempool(root: HTMLElement): () => void {
     const diff = appEl.querySelector<HTMLElement>('#mp-diff')!;
     diff.hidden = false;
     if (pubOut.sandwiched) {
-      const keptUsd = (Number(pealOut.fill) - Number(pubOut.victimOut)) * midPrice;
+      const keptUsd = toUsd(Number(pealOut.fill) - Number(pubOut.victimOut), recvUnit, midPrice);
       diff.innerHTML =
         `<span class="mp-diff-kicker">same swap, two mempools</span>` +
         `<span class="mp-diff-num">${usd2(keptUsd)}</span>` +
@@ -327,7 +363,7 @@ export function renderMempool(root: HTMLElement): () => void {
   function pollPublic(
     orderId: string,
     fairWei: bigint,
-    midPrice: number,
+    ctx: { recvUnit: Sym; payUnit: Sym; price: number },
     resEl: HTMLElement,
   ): Promise<PubOut> {
     return new Promise((resolve) => {
@@ -338,13 +374,15 @@ export function renderMempool(root: HTMLElement): () => void {
         clearInterval(id);
         const fair = Number(fromWad(fairWei));
         if (r.sandwiched) {
-          const lostUsd = (fair - Number(r.victimOut)) * midPrice;
+          const lostUsd = toUsd(fair - Number(r.victimOut), ctx.recvUnit, ctx.price);
+          // The searcher's profit is denominated in the victim's PAY token.
+          const profitUsd = toUsd(Number(r.profit), ctx.payUnit, ctx.price);
           sandwich?.resolve({ lostUsd });
           resEl.innerHTML = resultHtml({
             tone: 'bad',
             got: r.victimOut ?? '',
-            fair: fromWad(fairWei),
-            line: `the searcher took <b>${usd2(Number(r.profit))}</b>`,
+            unit: ctx.recvUnit,
+            line: `the searcher took <b>${usd2(profitUsd)}</b>`,
             tx: link(r.txHash ?? ''),
           });
         } else {
@@ -352,7 +390,7 @@ export function renderMempool(root: HTMLElement): () => void {
           resEl.innerHTML = resultHtml({
             tone: 'ok',
             got: r.victimOut ?? '',
-            fair: fromWad(fairWei),
+            unit: ctx.recvUnit,
             line: `filled in full — too small to sandwich`,
             tx: link(r.txHash ?? ''),
           });
@@ -369,7 +407,7 @@ export function renderMempool(root: HTMLElement): () => void {
     fill: string;
   }
 
-  function pollPeal(conditionId: string, fairWei: bigint, resEl: HTMLElement): Promise<PealOut> {
+  function pollPeal(conditionId: string, fairWei: bigint, recvUnit: Sym, resEl: HTMLElement): Promise<PealOut> {
     return new Promise((resolve) => {
       let firesAt = Math.floor(Date.now() / 1000) + ROUND_SECS;
       const tick = async () => {
@@ -396,7 +434,7 @@ export function renderMempool(root: HTMLElement): () => void {
         resEl.innerHTML = resultHtml({
           tone: 'good',
           got: fill,
-          fair: fromWad(fairWei),
+          unit: recvUnit,
           line: `the searcher took <b>$0</b>, opened by executeBatch`,
           tx: link(r.txHash ?? ''),
         });
@@ -408,10 +446,11 @@ export function renderMempool(root: HTMLElement): () => void {
     });
   }
 
-  function resultHtml(o: { tone: 'bad' | 'ok' | 'good'; got: string; fair: string; line: string; tx: string }): string {
+  function resultHtml(o: { tone: 'bad' | 'ok' | 'good'; got: string; unit: Sym; line: string; tx: string }): string {
     const gotClass = o.tone === 'bad' ? 'mp-got-bad' : o.tone === 'good' ? 'mp-got-good' : 'mp-got-ok';
+    const dp = o.unit === 'USDC' ? 2 : 4;
     return `
-      <div class="mp-result-num ${gotClass}">${num(o.got)}<span class="mp-result-unit">ETH</span></div>
+      <div class="mp-result-num ${gotClass}">${num(o.got, dp)}<span class="mp-result-unit">${o.unit}</span></div>
       <div class="mp-result-line">${o.line}. ${o.tx}</div>`;
   }
 
