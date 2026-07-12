@@ -3048,9 +3048,11 @@ body.landing-page main {
 .mp-flow-card {
   display: grid; grid-template-columns: 300px 1fr; gap: 26px; align-items: center;
   background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 22px 26px; margin: 0 0 18px 6px;
+  box-shadow: 0 2px 14px rgb(15 23 42 / 0.05);
   transition: border-color 300ms, box-shadow 300ms;
 }
-.mp-flow-step.is-done .mp-flow-card { border-color: var(--accent-border); box-shadow: 0 6px 22px rgb(37 99 235 / 0.06); }
+.mp-flow-step.is-done .mp-flow-card { border-color: var(--accent-border); box-shadow: 0 8px 26px rgb(37 99 235 / 0.09); }
+.mp-flow-pub.is-done .mp-flow-card { border-color: var(--red-border); box-shadow: 0 8px 26px rgb(220 38 38 / 0.08); }
 .mp-flow-viz { height: 190px; position: relative; }
 .mp-flow-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .mp-flow-top h4 { margin: 0; font-size: 18px; font-weight: 600; }
@@ -3124,12 +3126,24 @@ body.landing-page main {
 @keyframes fx-decoy { 0%,60% { opacity: 0.45; } 80%,100% { opacity: 0.8; } }
 
 /* ---- fx 3 + 4: committee ring ---- */
-.fx-commit .fx-stage, .fx-reveal2 .fx-stage { width: 180px; height: 168px; }
+.fx-commit .fx-stage, .fx-reveal2 .fx-stage { width: 188px; height: 176px; }
+/* operators are committee nodes, each holding a key share */
 .fx-op {
-  position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 999px;
-  background: var(--surface); border: 1.5px solid var(--border);
+  position: absolute; width: 32px; height: 32px; margin: -16px 0 0 -16px; border-radius: 10px;
+  background: #fff; border: 1px solid var(--accent-border); box-shadow: 0 3px 10px rgb(37 99 235 / 0.16);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 400ms, border-color 400ms, box-shadow 400ms;
 }
-.fx-op-on { background: var(--green-weak); border-color: var(--green); box-shadow: 0 0 12px rgb(22 163 74 / 0.4); }
+.fx-op::before {
+  content: ''; width: 16px; height: 16px; transition: background-image 200ms;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='7.5' cy='15.5' r='4.5'/%3E%3Cpath d='M10.5 12.5L19 4M16 7l2.5 2.5M14 9l2.5 2.5'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.fx-op-on {
+  background: var(--green-weak); border-color: var(--green); box-shadow: 0 3px 14px rgb(22 163 74 / 0.3);
+}
+.fx-op-on::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316a34a' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5 5 11-11'/%3E%3C/svg%3E") center/contain no-repeat;
+}
 .fx-core {
   position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
