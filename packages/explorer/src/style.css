@@ -2754,14 +2754,22 @@ body.landing-page main {
 /* ---- sandwich ---- */
 .mp3d-scene { transform: rotateX(58deg) rotateZ(-32deg); transition: transform 500ms ease; }
 .slab {
-  position: absolute; left: 26px; top: 52px; width: 148px; height: 66px;
-  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  position: absolute; left: 26px; top: 52px; width: 148px; height: 60px;
+  border-radius: 12px;
   transition: transform 600ms cubic-bezier(0.34, 1.4, 0.64, 1);
   box-shadow: 0 6px 14px rgb(0 0 0 / 0.10);
 }
-.slab-tag { font-size: 11px; font-weight: 600; transform: rotateZ(32deg) rotateX(-58deg); white-space: nowrap; }
-.slab-attacker { background: linear-gradient(135deg, #fecaca, #f87171); color: #7f1d1d; }
-.slab-victim { background: linear-gradient(135deg, #dbeafe, #60a5fa); color: #1e3a8a; z-index: 2; }
+.slab-attacker { background: linear-gradient(135deg, #fecaca, #f87171); }
+.slab-victim {
+  background: linear-gradient(135deg, #93c5fd, #2563eb); z-index: 2; height: 68px; top: 48px;
+  box-shadow: 0 8px 20px rgb(37 99 235 / 0.35);
+}
+
+.mp3d-legend { display: flex; gap: 14px; justify-content: center; margin-top: 10px; }
+.mp3d-leg { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.mp3d-dot { width: 9px; height: 9px; border-radius: 3px; }
+.mp3d-dot-red { background: #f87171; }
+.mp3d-dot-blue { background: #2563eb; }
 .slab-front { transform: translateZ(46px); }
 .slab-victim { transform: translateZ(0); }
 .slab-back { transform: translateZ(-46px); }

@@ -36,9 +36,9 @@ export function createSandwichScene(): Scene {
   const stage = el('mp3d-stage');
   const scene = el('mp3d-scene');
 
-  const back = el('slab slab-attacker slab-back', '<span class="slab-tag">back-run</span>');
-  const victim = el('slab slab-victim', '<span class="slab-tag">your swap</span>');
-  const front = el('slab slab-attacker slab-front', '<span class="slab-tag">front-run</span>');
+  const back = el('slab slab-attacker slab-back');
+  const victim = el('slab slab-victim');
+  const front = el('slab slab-attacker slab-front');
   scene.append(back, victim, front);
 
   // Value siphoned to the searcher.
@@ -53,6 +53,15 @@ export function createSandwichScene(): Scene {
   const searcher = el('mp3d-searcher', '<span>searcher</span>');
   stage.append(scene, searcher);
   root.appendChild(stage);
+
+  // Flat, crisp legend so the 3D stack is legible without skewed text on it.
+  const legend = el(
+    'mp3d-legend',
+    `<span class="mp3d-leg"><i class="mp3d-dot mp3d-dot-red"></i>front-run</span>` +
+      `<span class="mp3d-leg"><i class="mp3d-dot mp3d-dot-blue"></i>your swap</span>` +
+      `<span class="mp3d-leg"><i class="mp3d-dot mp3d-dot-red"></i>back-run</span>`,
+  );
+  root.appendChild(legend);
 
   const loss = el('mp3d-loss');
   root.appendChild(loss);
