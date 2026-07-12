@@ -2618,6 +2618,15 @@ body.landing-page main {
 }
 .mp-field-top { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
 .mp-field-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mp-field-bot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.mp-usd { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.mp-chain { color: var(--muted-soft); font-size: 12px; }
+.mp-token { cursor: pointer; }
+.mp-token:hover { border-color: var(--accent-border); background: var(--accent-weak); }
+.mp-token-caret {
+  width: 7px; height: 7px; margin-left: 2px; border-right: 1.6px solid var(--muted); border-bottom: 1.6px solid var(--muted);
+  transform: rotate(45deg) translateY(-1px);
+}
 .mp-field-main input {
   border: none; background: transparent; outline: none;
   font: inherit; font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums;
@@ -2704,8 +2713,9 @@ body.landing-page main {
   animation: mp-spin 0.7s linear infinite;
 }
 @keyframes mp-spin { to { transform: rotate(360deg); } }
-.mp-result-num { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.mp-result-unit { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+.mp-result-num { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; display: flex; align-items: center; gap: 8px; }
+.mp-result-coin { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.mp-result-coin .mp-coin { width: 18px; height: 18px; }
 .mp-got-bad { color: var(--red); }
 .mp-got-good { color: var(--green); }
 .mp-got-ok { color: var(--text); }
@@ -2738,7 +2748,7 @@ body.landing-page main {
 }
 .mp-faq-item.is-open .mp-faq-caret { transform: rotate(-135deg); margin-top: 4px; }
 .mp-faq-a { max-height: 0; overflow: hidden; transition: max-height 260ms ease; }
-.mp-faq-item.is-open .mp-faq-a { max-height: 320px; }
+.mp-faq-item.is-open .mp-faq-a { max-height: 640px; }
 .mp-faq-a p { margin: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
 /* ================= 3D scenes ================= */
@@ -2851,4 +2861,78 @@ body.landing-page main {
   .mp3d-vault[data-phase='racing'] .mp3d-searcher-orbit,
   .mp-spinner { animation: none !important; }
   .mp3d-sandwich[data-phase='attacked'] .coin { animation: none !important; opacity: 0; }
+}
+
+/* ---- how Peal works: technical proof steps ---- */
+.mp-proofs { margin-top: 26px; }
+.mp-proofs[hidden] { display: none; }
+.mp-proofs-head { text-align: center; margin-bottom: 18px; }
+.mp-proofs-head h3 {
+  font-family: 'Josefin Sans', system-ui, sans-serif; font-weight: 500; font-size: 22px; margin: 0 0 6px;
+}
+.mp-proofs-head p { color: var(--muted); font-size: 14px; margin: 0 auto; max-width: 560px; }
+
+.mp-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: stretch; }
+@media (max-width: 860px) { .mp-steps { grid-template-columns: 1fr; } }
+
+.mp-step {
+  display: flex; flex-direction: column;
+  background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; min-width: 0;
+  transition: border-color 250ms, box-shadow 250ms;
+}
+.mp-step.is-done { border-color: var(--accent-border); box-shadow: 0 6px 20px rgb(37 99 235 / 0.07); }
+.mp-step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.mp-step-n {
+  width: 26px; height: 26px; flex: none; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
+  transition: background 250ms, color 250ms, border-color 250ms;
+}
+.mp-step.is-done .mp-step-n { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mp-step-head h4 { margin: 0; font-size: 15px; font-weight: 600; flex: 1; }
+.mp-step-check {
+  width: 20px; height: 20px; flex: none; border-radius: 999px; opacity: 0;
+  background: var(--green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.2l2.2 2.2 4.6-4.9' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
+  transition: opacity 250ms;
+}
+.mp-step.is-done .mp-step-check { opacity: 1; }
+.mp-step-body { font-size: 13px; }
+.mp-step-lead { color: var(--text); margin: 0 0 12px; line-height: 1.55; }
+.mp-step-lead b { font-weight: 700; }
+.mp-step-note { color: var(--muted); font-size: 12px; margin: 12px 0 0; line-height: 1.5; }
+
+.mp-proof-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding: 8px 0; border-top: 1px solid var(--border);
+}
+.mp-proof-row:first-of-type { border-top: none; }
+.mp-proof-k { color: var(--muted); font-size: 12px; flex: none; }
+.mp-proof-v { text-align: right; font-size: 13px; overflow-wrap: anywhere; }
+.mp-proof-v b { font-weight: 700; }
+.mp-danger { color: var(--red); font-weight: 600; }
+
+/* committee operator pips + verified checks */
+.mp-pips, .mp-checks { display: inline-flex; gap: 4px; vertical-align: middle; }
+.mp-pip { width: 10px; height: 10px; border-radius: 999px; background: var(--border); }
+.mp-pip-on { background: var(--accent); }
+.mp-check {
+  width: 14px; height: 14px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border);
+}
+.mp-check-on {
+  background: var(--green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.2l2.2 2.2 4.6-4.9' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 10px no-repeat;
+  border-color: var(--green);
+}
+
+/* ---- FAQ contracts ---- */
+.mp-faq-inner { color: var(--muted); font-size: 14px; line-height: 1.65; }
+.mp-faq-inner p { margin: 0 0 12px; }
+.mp-contracts { list-style: none; margin: 10px 0 4px; padding: 0; }
+.mp-contracts li {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px;
+}
+.mp-contracts li span { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-step, .mp-step-n, .mp-step-check { transition: none !important; }
 }

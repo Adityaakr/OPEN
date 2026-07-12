@@ -60,6 +60,8 @@ async function config() {
     chainId: d.chainId,
     explorerBase: d.explorerBase,
     relayer,
+    usdc: d.usdc,
+    eth: d.eth,
     publicPool: d.publicPool,
     publicBuilder: d.publicBuilder,
     pealPool: d.pealPool,

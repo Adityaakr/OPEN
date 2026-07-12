@@ -11,10 +11,18 @@ export interface MempoolConfig {
   chainId: number;
   explorerBase: string;
   relayer: `0x${string}`;
+  usdc: `0x${string}`;
+  eth: `0x${string}`;
   publicPool: `0x${string}`;
   publicBuilder: `0x${string}`;
   pealPool: `0x${string}`;
   pealMempool: `0x${string}`;
+}
+
+/** Explorer address URL, or null when no explorer is configured. */
+export function addrUrl(cfg: MempoolConfig, addr: string): string | null {
+  if (!cfg.explorerBase) return null;
+  return `${cfg.explorerBase.replace(/\/$/, '')}/address/${addr}`;
 }
 
 export interface PoolState {
