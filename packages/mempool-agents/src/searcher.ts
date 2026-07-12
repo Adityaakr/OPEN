@@ -11,7 +11,7 @@
 // failure is the demo: same bot, same intent, blind because the order is sealed.
 import { formatEther, type Address } from 'viem';
 import { erc20Abi, pealMempoolAbi, publicBuilderAbi, swapPoolAbi } from './abi.js';
-import { chainFor, loadDeployment, publicClient, requireKey, serializer, walletFor } from './config.js';
+import { chainFor, loadDeployment, publicClient, requireKey, serializer, walletFor, writeGas } from './config.js';
 import { planSandwich, type Reserves } from './sandwich.js';
 
 const d = loadDeployment();
@@ -35,7 +35,7 @@ async function ensureApproval(token: Address): Promise<void> {
   if (allowance > 10n ** 30n) return;
   const hash = await wallet.writeContract({
     address: token, abi: erc20Abi, functionName: 'approve', args: [d.publicPool, 2n ** 256n - 1n],
-    chain: chainFor(d),
+    chain: chainFor(d), ...writeGas,
   });
   await pub.waitForTransactionReceipt({ hash });
 }
@@ -62,7 +62,7 @@ async function onPending(
     const hash = await tx(() =>
       wallet.writeContract({
         address: d.publicBuilder, abi: publicBuilderAbi, functionName: 'sandwich',
-        args: [id, plan.frontIn], chain: chainFor(d),
+        args: [id, plan.frontIn], chain: chainFor(d), ...writeGas,
       }),
     );
     const rcpt = await pub.waitForTransactionReceipt({ hash });
@@ -75,7 +75,7 @@ async function onPending(
     const hash = await tx(() =>
       wallet.writeContract({
         address: d.publicBuilder, abi: publicBuilderAbi, functionName: 'execute',
-        args: [id], chain: chainFor(d),
+        args: [id], chain: chainFor(d), ...writeGas,
       }),
     );
     await pub.waitForTransactionReceipt({ hash });

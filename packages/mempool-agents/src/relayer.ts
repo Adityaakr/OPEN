@@ -17,7 +17,7 @@ import {
   type Hex,
 } from 'viem';
 import { erc20Abi, pealMempoolAbi, publicBuilderAbi, swapPoolAbi } from './abi.js';
-import { chainFor, loadDeployment, publicClient, requireKey, serializer, walletFor } from './config.js';
+import { chainFor, loadDeployment, publicClient, requireKey, serializer, walletFor, writeGas } from './config.js';
 
 const d = loadDeployment();
 const pub = publicClient(d);
@@ -37,7 +37,7 @@ async function ensureApproval(token: Address, spender: Address): Promise<void> {
   const hash = await tx(() =>
     wallet.writeContract({
       address: token, abi: erc20Abi, functionName: 'approve', args: [spender, 2n ** 256n - 1n],
-      chain: chainFor(d),
+      chain: chainFor(d), ...writeGas,
     }),
   );
   await pub.waitForTransactionReceipt({ hash });
@@ -84,7 +84,7 @@ async function publicSwap(body: { amountIn: string; minOut: string; baseToQuote:
   const hash = await tx(() =>
     wallet.writeContract({
       address: d.publicBuilder, abi: publicBuilderAbi, functionName: 'submitOrder',
-      args: [order], chain: chainFor(d),
+      args: [order], chain: chainFor(d), ...writeGas,
     }),
   );
   const rcpt = await pub.waitForTransactionReceipt({ hash });
@@ -107,7 +107,7 @@ async function commit(body: { conditionId: string; ctHash: string }) {
   const hash = await tx(() =>
     wallet.writeContract({
       address: d.pealMempool, abi: pealMempoolAbi, functionName: 'commitSealed',
-      args: [cond, ct], chain: chainFor(d),
+      args: [cond, ct], chain: chainFor(d), ...writeGas,
     }),
   );
   await pub.waitForTransactionReceipt({ hash });

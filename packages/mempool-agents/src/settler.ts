@@ -10,7 +10,7 @@
 // shipped devnet is untouched; all chain interaction lives here.
 import { sha256, toBytes, toHex } from 'viem';
 import { pealMempoolAbi } from './abi.js';
-import { chainFor, loadDeployment, publicClient, requireKey, walletFor } from './config.js';
+import { chainFor, loadDeployment, publicClient, requireKey, walletFor, writeGas } from './config.js';
 
 const d = loadDeployment();
 const pub = publicClient(d);
@@ -51,43 +51,45 @@ function cond32(id: string): `0x${string}` {
 }
 
 async function settle(id: string): Promise<void> {
-  const key = cond32(id);
-  const already = (await pub.readContract({
-    address: d.pealMempool, abi: pealMempoolAbi, functionName: 'settledRoot', args: [key],
-  })) as `0x${string}`;
-  if (already !== `0x${'0'.repeat(64)}`) {
-    done.add(id);
-    return;
-  }
-
-  const reveal = (await (await fetch(`${COORD}/v0/reveals/${encodeURIComponent(id)}`)).json()) as Reveal;
-  const slots = [...reveal.slots]
-    .sort((a, b) => a.position - b.position)
-    .map((s) => ({ position: s.position, isReal: !s.is_dummy, payload: b64ToHex(s.payload_b64) }));
-
-  const root = (`0x${reveal.merkle_root.replace(/^0x/, '')}`) as `0x${string}`;
-  const real = slots.filter((s) => s.isReal).length;
-  console.log(`[settler] opening ${id.slice(0, 10)} on-chain: ${slots.length} slots, ${real} real`);
+  // Mark done synchronously, before any await, so an overlapping poll tick can
+  // never submit executeBatch for the same condition twice (the second would
+  // fail with AlreadySettled). Transient failures un-mark it below to retry.
+  if (done.has(id)) return;
+  done.add(id);
 
   try {
+    const key = cond32(id);
+    const already = (await pub.readContract({
+      address: d.pealMempool, abi: pealMempoolAbi, functionName: 'settledRoot', args: [key],
+    })) as `0x${string}`;
+    if (already !== `0x${'0'.repeat(64)}`) return; // already on-chain; stays done
+
+    const reveal = (await (await fetch(`${COORD}/v0/reveals/${encodeURIComponent(id)}`)).json()) as Reveal;
+    const slots = [...reveal.slots]
+      .sort((a, b) => a.position - b.position)
+      .map((s) => ({ position: s.position, isReal: !s.is_dummy, payload: b64ToHex(s.payload_b64) }));
+
+    const root = (`0x${reveal.merkle_root.replace(/^0x/, '')}`) as `0x${string}`;
+    const real = slots.filter((s) => s.isReal).length;
+    console.log(`[settler] opening ${id.slice(0, 10)} on-chain: ${slots.length} slots, ${real} real`);
+
     const hash = await wallet.writeContract({
       address: d.pealMempool, abi: pealMempoolAbi, functionName: 'executeBatch',
-      args: [key, slots, root], chain: chainFor(d),
+      args: [key, slots, root], chain: chainFor(d), ...writeGas,
     });
     const rcpt = await pub.waitForTransactionReceipt({ hash });
-    done.add(id);
     console.log(`[settler] SETTLED ${id.slice(0, 10)} in ${hash} (block ${rcpt.blockNumber})`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (/revert/i.test(msg)) {
-      // A revert means the batch cannot settle against these contracts (e.g. a
-      // payload that is not an order, or a trader without balance/approval).
-      // Permanently skip it rather than retry forever.
-      done.add(id);
-      console.warn(`[settler] skipping ${id.slice(0, 10)}: executeBatch reverted (${msg.split('\n')[0]})`);
+    if (/revert|already/i.test(msg)) {
+      // The batch cannot settle against these contracts (foreign payload, or a
+      // trader without balance/approval), or it is already settled. Either way,
+      // permanently skip it rather than retry forever. Stays done.
+      console.warn(`[settler] skipping ${id.slice(0, 10)}: ${msg.split('\n')[0]}`);
       return;
     }
-    throw e; // transient (RPC/network): let poll retry
+    done.delete(id); // transient (RPC/network): let poll retry
+    throw e;
   }
 }
 

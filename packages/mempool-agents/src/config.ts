@@ -55,6 +55,17 @@ export function walletFor(d: Deployment, key: string) {
   return createWalletClient({ account, chain: chainFor(d), transport: http(d.rpcUrl) });
 }
 
+/** Tempo charges ~1000 gas/byte to deploy and 250k per new storage slot, and
+ * its eth_estimateGas returns a standard-EVM number that under-provisions every
+ * write. Set TX_GAS to a generous fixed limit there (unused gas is not charged);
+ * leave it unset on chains that estimate correctly (anvil). Spread the result
+ * into every writeContract. */
+export const gasOverride: bigint | undefined = process.env.TX_GAS
+  ? BigInt(process.env.TX_GAS)
+  : undefined;
+
+export const writeGas: { gas?: bigint } = gasOverride ? { gas: gasOverride } : {};
+
 export function requireKey(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`missing env ${name} (source it from .secrets/tempo-keys.env)`);

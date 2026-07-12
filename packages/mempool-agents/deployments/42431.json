@@ -1,0 +1,11 @@
+{
+  "chainId": 42431,
+  "rpcUrl": "https://rpc.moderato.tempo.xyz",
+  "explorerBase": "https://explore.testnet.tempo.xyz",
+  "usdc": "0x57a72cffcd01aee2eb57de96055a3a0b29bc1731",
+  "eth": "0x97c4bfa8d38da7c3162477c1f4bb442d408fd31a",
+  "publicPool": "0x29afed031e1ee7bda5d18785e8f6664883b56956",
+  "publicBuilder": "0x1a3dcf7fbb6ba660113e922e00f2fe3b459a97f7",
+  "pealPool": "0x652128057bcad1926742d8ae7a63cd3d0ce252ab",
+  "pealMempool": "0x490dcec0c6f0a07d612e4aeee056159f6cbe9ccf"
+}
