@@ -60,9 +60,10 @@ export function walletFor(d: Deployment, key: string) {
  * write. Set TX_GAS to a generous fixed limit there (unused gas is not charged);
  * leave it unset on chains that estimate correctly (anvil). Spread the result
  * into every writeContract. */
-export const gasOverride: bigint | undefined = process.env.TX_GAS
-  ? BigInt(process.env.TX_GAS)
-  : undefined;
+// Tolerate values pasted with surrounding quotes or whitespace (a common
+// dashboard-entry slip): strip anything that isn't a digit before parsing.
+const rawTxGas = process.env.TX_GAS?.replace(/[^0-9]/g, '');
+export const gasOverride: bigint | undefined = rawTxGas ? BigInt(rawTxGas) : undefined;
 
 export const writeGas: { gas?: bigint } = gasOverride ? { gas: gasOverride } : {};
 
