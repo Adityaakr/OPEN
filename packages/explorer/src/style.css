@@ -533,6 +533,17 @@ a.btn {
   color: var(--muted);
   margin: 16px 0 0;
 }
+.verify-result {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface, #f9fafb);
+}
+.verify-result.verify-ok { border-color: #bbf7d0; background: var(--green-weak, #f0fdf4); color: var(--text); }
+.verify-result.verify-bad { border-color: var(--red-border, #fecaca); background: var(--red-weak, #fef2f2); color: var(--red-text, #991b1b); }
 
 /* ---------- tables ---------- */
 

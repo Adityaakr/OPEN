@@ -7,6 +7,7 @@ import {
   type Reveal,
 } from '../api';
 import { wireCopy } from '../playground';
+import { recomputeMerkleRoot, normalizeHex } from '../merkle';
 import { isPrivatePayload } from '../privacy';
 import {
   decodePayload,
@@ -115,6 +116,7 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
         renderStage();
         revealEl.innerHTML = revealSection(reveal, condition);
         wireCopy(revealEl);
+        wireVerify(revealEl, reveal);
         if (pollTimer !== undefined) clearInterval(pollTimer);
         if (tickTimer !== undefined) clearInterval(tickTimer);
       }
@@ -131,6 +133,39 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
     if (pollTimer !== undefined) clearInterval(pollTimer);
     if (tickTimer !== undefined) clearInterval(tickTimer);
   };
+}
+
+/** Recompute the merkle root from the revealed plaintexts in the browser and
+ * compare it to the published one, so the reveal is verifiable without trusting
+ * the coordinator. */
+function wireVerify(scope: HTMLElement, r: Reveal): void {
+  const btn = scope.querySelector<HTMLButtonElement>('#verify-root');
+  const out = scope.querySelector<HTMLElement>('#verify-result');
+  if (!btn || !out) return;
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    out.hidden = false;
+    out.className = 'verify-result';
+    out.textContent = 'recomputing the root from all 64 plaintexts…';
+    void recomputeMerkleRoot(r.slots)
+      .then((got) => {
+        const want = normalizeHex(r.merkle_root);
+        if (normalizeHex(got) === want) {
+          out.className = 'verify-result verify-ok';
+          out.innerHTML = `<span class="ok">verified</span> the root recomputed from the plaintexts equals the published <span class="mono">${esc(truncMiddle(r.merkle_root, 12, 10))}</span>. this reveal was not tampered with.`;
+        } else {
+          out.className = 'verify-result verify-bad';
+          out.innerHTML = `<strong>mismatch.</strong> recomputed <span class="mono">${esc(truncMiddle(got, 12, 10))}</span> does not equal the published <span class="mono">${esc(truncMiddle(r.merkle_root, 12, 10))}</span>.`;
+        }
+      })
+      .catch((e) => {
+        out.className = 'verify-result verify-bad';
+        out.textContent = `could not recompute the root (${String(e)}).`;
+      })
+      .finally(() => {
+        btn.disabled = false;
+      });
+  });
 }
 
 function metaCard(c: ConditionDetail): string {
@@ -171,9 +206,11 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
         </dl>
         <p class="trust-note">the merkle root commits to every slot below, padding included.
         anyone can recompute it from the plaintexts and catch a tampered reveal.
+        <button type="button" class="link" id="verify-root">recompute it here</button>, or
         <a class="link" download="peal-batch-${esc(r.condition_id)}.json"
            href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(r, null, 2))}">download
-        the batch json</a> to verify it yourself.</p>
+        the batch json</a> to check it yourself.</p>
+        <p id="verify-result" class="verify-result" hidden></p>
         ${slotGrid(r)}
       </div>
       ${boardTable(r)}
