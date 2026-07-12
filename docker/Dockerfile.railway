@@ -42,7 +42,13 @@ COPY --from=wasm /app/crates/bte-wasm/pkg-seal ./crates/bte-wasm/pkg-seal
 COPY --from=wasm /app/crates/bte-wasm/pkg-verify ./crates/bte-wasm/pkg-verify
 RUN pnpm install --frozen-lockfile
 RUN BTE_SKIP_WASM_PACK=1 pnpm -C packages/sdk build
-RUN VITE_BTE_URL="" pnpm -C packages/explorer build
+# VITE_BTE_URL stays "" so /v0 resolves same-origin (Caddy proxies it). The
+# relayer runs as its own public service, so its URL is baked in here from the
+# VITE_RELAYER_URL build arg (set it as a Railway build variable). Left empty,
+# the explorer falls back to http://localhost:8799 and the playground only works
+# on the developer's machine.
+ARG VITE_RELAYER_URL=""
+RUN VITE_BTE_URL="" VITE_RELAYER_URL="$VITE_RELAYER_URL" pnpm -C packages/explorer build
 
 # -- stage 4: runtime ----------------------------------------------------------
 FROM debian:bookworm-slim

@@ -63,6 +63,16 @@ swap, and a background keeper would risk resetting them mid-swap.
 
 ## 4. The explorer (static SPA)
 
+> The currently-live service (`bte-explorer-production`) is the **devnet-in-a-box**
+> image (`docker/Dockerfile.railway`): it runs the coordinator + operators AND
+> serves the explorer static build, with Caddy proxying `/v0` same-origin. If you
+> keep that bundling, you do NOT deploy a separate explorer service. Instead set
+> `VITE_RELAYER_URL` as a **build variable** on that one service and redeploy it;
+> the Dockerfile now bakes it into the explorer build. `VITE_BTE_URL` stays empty
+> (same-origin `/v0`). The standalone-explorer setup below is the alternative if
+> you ever split them apart.
+
+
 The explorer imports the `bte-sdk` workspace package, so its build needs the
 whole repo. On Railway set this service's **root directory to the repo root**
 and its Dockerfile path to `packages/explorer/Dockerfile`.
