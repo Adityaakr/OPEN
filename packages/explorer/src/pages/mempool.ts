@@ -59,6 +59,10 @@ const COIN: Record<Sym, string> = {
  * swaps from ~$5k up get sandwiched. */
 const DEFAULT_AMT: Record<Sym, string> = { USDC: '10000', ETH: '3' };
 
+// Cap the demo order so nobody drains the per-swap reset pools with a huge
+// trade: ~$100k of either side (USDC 1:1, ETH via the live pool price).
+const MAX_SWAP_USD = 100_000;
+
 const usd0 = (n: number) =>
   n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const usd2 = (n: number) =>
@@ -260,8 +264,13 @@ export function renderMempool(root: HTMLElement): () => void {
         recvEl.textContent = num(fromWad(out));
         rateEl.textContent = `1 ETH = ${num(price, 2)} USDC`;
         minEl.textContent = `${num(fromWad(floor))} ${recvToken()}`;
-        payUsdEl.textContent = usd0(toUsd(Number(payEl.value) || 0, payToken(), price));
+        const payUsd = toUsd(Number(payEl.value) || 0, payToken(), price);
+        payUsdEl.textContent = usd0(payUsd);
         recvUsdEl.textContent = usd0(toUsd(Number(fromWad(out)), recvToken(), price));
+        // Enforce the demo cap: over ~$100k, block the swap and say why.
+        const over = payUsd > MAX_SWAP_USD;
+        go.disabled = over;
+        go.textContent = over ? 'max $100,000 per swap' : 'Swap';
       } catch {
         /* transient */
       }
