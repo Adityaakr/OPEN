@@ -544,8 +544,10 @@ export function renderMempool(root: HTMLElement): () => void {
 
   // ---- lane polling / rendering -----------------------------------------
 
+  // msg is trusted HTML built from developer templates (it may embed a link());
+  // callers escape their own dynamic plain-text parts, so do not escape here.
   function laneStatus(msg: string): string {
-    return `<div class="mp-lane-status"><span class="mp-spinner" aria-hidden="true"></span>${esc(msg)}</div>`;
+    return `<div class="mp-lane-status"><span class="mp-spinner" aria-hidden="true"></span>${msg}</div>`;
   }
 
   function link(hash: string): string {
