@@ -493,6 +493,21 @@ whole flow is direction-aware (quote, seal baseToQuote, public order, result
 units, profit valuation, kept-USD). Contracts + searcher were already
 direction-agnostic. Verified both ways on Tempo.
 
+### Swap UI + live BTE proofs + verifiable contracts (2026-07-12, DONE)
+- Swap card DEX-styled in Peal light theme (ref: a Squid/Jumper dark widget):
+  real USDC/ETH logos in token pills + chevron (click to flip), USD value under
+  each amount, "on Tempo" sublabel, Tempo network badge, logo inline in result.
+- "How Peal sealed and proved your swap": 3 aligned cards populated with REAL
+  artifacts as the swap runs (client.committee()/status()/reveal()): (1) sealed
+  = ciphertext hash + payload bytes + "searcher sees nothing"; (2) batched =
+  t-of-n operator pips + this batch's real+decoy count + params digest; (3)
+  revealed = verified share checks + merkle root + on-chain executeBatch that
+  re-derived it. This is the "convince someone technically" section the user
+  asked for. proofStep/proofRow/operatorPips/checks builders in mempool.ts.
+- FAQ: "How can I verify it myself?" lists all 6 contracts linked to the Tempo
+  explorer (addrUrl); "How does the sealing actually work?" explainer. /config
+  now serves usdc/eth addresses; MempoolConfig gained usdc/eth + addrUrl().
+
 ### Tempo-under-load learnings (robustness)
 Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything
 behind it; symptom: relayer /commit hangs forever). Fixes applied: TX_GAS
