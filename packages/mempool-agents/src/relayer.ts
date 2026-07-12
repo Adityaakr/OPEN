@@ -74,6 +74,27 @@ async function state() {
   return { publicPool: pubR, pealPool: pealR };
 }
 
+// Reset target: a $90M pool at $3,000/ETH. Both lanes are reset to exactly this
+// before each swap, so the only difference between them is the sandwich, never
+// independent pool drift.
+const TARGET_BASE = 30_000_000n * 10n ** 18n;
+const TARGET_QUOTE = 10_000n * 10n ** 18n;
+
+/** Reset both pools to identical reserves. Called before each swap so the two
+ * lanes start from the same state. */
+async function prepare() {
+  for (const pool of [d.publicPool, d.pealPool]) {
+    const hash = await tx(() =>
+      wallet.writeContract({
+        address: pool, abi: swapPoolAbi, functionName: 'adminSetReserves',
+        args: [TARGET_BASE, TARGET_QUOTE], chain: chainFor(d), ...writeGas,
+      }),
+    );
+    await waitReceipt(pub, hash);
+  }
+  return { ok: true };
+}
+
 /** Submit the public-lane order in the clear, on the visitor's behalf. */
 async function publicSwap(body: { amountIn: string; minOut: string; baseToQuote: boolean }) {
   const order = {
@@ -210,6 +231,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/peal-result') {
       return send(res, 200, await pealResult(url.searchParams.get('conditionId') ?? ''));
     }
+    if (req.method === 'POST' && url.pathname === '/prepare') return send(res, 200, await prepare());
     if (req.method === 'POST' && url.pathname === '/public-swap') return send(res, 200, await publicSwap(await readBody(req)));
     if (req.method === 'POST' && url.pathname === '/commit') return send(res, 200, await commit(await readBody(req)));
     send(res, 404, { error: 'not found' });

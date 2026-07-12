@@ -2,10 +2,10 @@
   "chainId": 42431,
   "rpcUrl": "https://rpc.moderato.tempo.xyz",
   "explorerBase": "https://explore.testnet.tempo.xyz",
-  "usdc": "0xff1c09983dfd039a5b01c5040316bf347f67b518",
-  "eth": "0xcd8acfe60d475849781dfa0337edca5b86a8605f",
-  "publicPool": "0x97266b6f63ea19f0aee2432db1f486ab3b4646ff",
-  "publicBuilder": "0x272350f901a1cb815f740d4388b3be41271f1cbe",
-  "pealPool": "0x592dedb26ef2fab950c0e56d4ce762be68d824cf",
-  "pealMempool": "0x1e5c155d2f6f3f1f6d4a1fc4e7068aebdacf8476"
+  "usdc": "0x0988ed39abd852d02a3951f0ae9f9995027145c2",
+  "eth": "0x3af0d1e453ff165da377a17acc5a2da421a67f4f",
+  "publicPool": "0x74b6b51f25fdfaab28f7813b3fb93dacdf75bdd3",
+  "publicBuilder": "0xe3a704f4b2d3d9010ad6e83bc4a9a0829d107af5",
+  "pealPool": "0x0a6ec3fb845c6de4fd7c0379581947844c655445",
+  "pealMempool": "0x387b9b50950ded996776a96f20af9d2106c96bf9"
 }

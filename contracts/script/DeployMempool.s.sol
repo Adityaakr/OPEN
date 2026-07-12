@@ -29,6 +29,9 @@ contract DeployMempool is Script {
     uint256 constant QUOTE_RESERVE = 10_000 ether;
     uint256 constant TRADER_USDC = 20_000_000 ether;
     uint256 constant TRADER_ETH = 5_000 ether;
+    // Extra relayer balance for the before-each-swap reserve resets.
+    uint256 constant RESEED_USDC = 500_000_000 ether;
+    uint256 constant RESEED_ETH = 200_000 ether;
 
     function run() external {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -42,8 +45,9 @@ contract DeployMempool is Script {
         DemoToken usdc = new DemoToken("Mock USDC", "mUSDC", deployer);
         DemoToken eth = new DemoToken("Mock ETH", "mETH", deployer);
 
-        // Public lane: pool driven by an unprotected, adversarial builder.
-        SwapPool publicPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)));
+        // Public lane: pool driven by an unprotected, adversarial builder. The
+        // relayer is admin so it can reset reserves before each swap.
+        SwapPool publicPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)), relayer);
         PublicBuilder builder = new PublicBuilder(publicPool);
         publicPool.initOperator(address(builder));
         usdc.mint(address(publicPool), BASE_RESERVE);
@@ -51,16 +55,18 @@ contract DeployMempool is Script {
         publicPool.sync();
 
         // Peal lane: pool opened only by the sealed-batch coordinator.
-        SwapPool pealPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)));
+        SwapPool pealPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)), relayer);
         PealMempool mempool = new PealMempool(pealPool, coordinator);
         pealPool.initOperator(address(mempool));
         usdc.mint(address(pealPool), BASE_RESERVE);
         eth.mint(address(pealPool), QUOTE_RESERVE);
         pealPool.sync();
 
-        // Trading balances. Approvals happen from the relayer/searcher keys.
-        usdc.mint(relayer, TRADER_USDC);
-        eth.mint(relayer, TRADER_ETH);
+        // Trading balances. Approvals happen from the relayer/searcher keys. The
+        // relayer also holds a large reseed buffer, since it funds the
+        // before-each-swap reserve reset on both pools.
+        usdc.mint(relayer, TRADER_USDC + RESEED_USDC);
+        eth.mint(relayer, TRADER_ETH + RESEED_ETH);
         usdc.mint(searcher, TRADER_USDC);
         eth.mint(searcher, TRADER_ETH);
 

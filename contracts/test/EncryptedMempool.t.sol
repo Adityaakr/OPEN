@@ -31,13 +31,13 @@ contract EncryptedMempoolTest is Test {
         eth = new DemoToken("Mock ETH", "mETH", deployer);
 
         // Public lane.
-        publicPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)));
+        publicPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)), deployer);
         builder = new PublicBuilder(publicPool);
         publicPool.initOperator(address(builder));
         _seed(publicPool);
 
         // Peal lane.
-        pealPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)));
+        pealPool = new SwapPool(IERC20(address(usdc)), IERC20(address(eth)), deployer);
         mempool = new PealMempool(pealPool, coordinator);
         pealPool.initOperator(address(mempool));
         _seed(pealPool);

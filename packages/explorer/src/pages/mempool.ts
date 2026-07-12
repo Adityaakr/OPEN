@@ -20,6 +20,7 @@ import {
   getPealResult,
   getPublicResult,
   getState,
+  prepareSwap,
   submitPublicSwap,
   toWad,
   txUrl,
@@ -334,6 +335,10 @@ export function renderMempool(root: HTMLElement): () => void {
     go.disabled = true;
     go.textContent = 'sending…';
 
+    // Reset both lanes to identical reserves, so the only difference between
+    // them is the sandwich, never independent pool drift.
+    await prepareSwap();
+
     const { pealPool } = await getState();
     const [rIn, rOut] = usdcToEth ? [pealPool.base, pealPool.quote] : [pealPool.quote, pealPool.base];
     const amountIn = toWad(amount);
@@ -415,8 +420,10 @@ export function renderMempool(root: HTMLElement): () => void {
     // Difference banner.
     const diff = appEl.querySelector<HTMLElement>('#mp-diff')!;
     diff.hidden = false;
-    if (pubOut.sandwiched) {
-      const keptUsd = toUsd(Number(pealOut.fill) - Number(pubOut.victimOut), recvUnit, midPrice);
+    // Both lanes started from identical reserves (prepareSwap), so peal is never
+    // worse than public; clamp to guard against wei rounding.
+    const keptUsd = Math.max(0, toUsd(Number(pealOut.fill) - Number(pubOut.victimOut), recvUnit, midPrice));
+    if (pubOut.sandwiched && keptUsd > 0.01) {
       diff.innerHTML =
         `<span class="mp-diff-kicker">same swap, two mempools</span>` +
         `<span class="mp-diff-num">${usd2(keptUsd)}</span>` +
@@ -424,7 +431,7 @@ export function renderMempool(root: HTMLElement): () => void {
     } else {
       diff.innerHTML =
         `<span class="mp-diff-kicker">same swap, two mempools</span>` +
-        `<span class="mp-diff-cap">too small to sandwich here, but the public lane leaks the moment the trade is worth wrapping. the sealed lane never does.</span>`;
+        `<span class="mp-diff-cap">this trade was too small to sandwich, so both lanes filled the same. raise the amount and the public lane starts leaking, while the sealed lane never does.</span>`;
     }
     appEl.querySelector<HTMLButtonElement>('#mp-again')!.hidden = false;
     busy = false;

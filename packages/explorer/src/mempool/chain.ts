@@ -49,6 +49,12 @@ export async function getState(): Promise<{ publicPool: PoolState; pealPool: Poo
   return { publicPool: p(raw.publicPool), pealPool: p(raw.pealPool) };
 }
 
+/** Reset both pools to identical reserves before a swap, so the only difference
+ * between the lanes is the sandwich. */
+export function prepareSwap(): Promise<{ ok: boolean }> {
+  return j('/prepare', { method: 'POST' });
+}
+
 export function commitSealed(conditionId: string, ctHash: string): Promise<{ txHash: string }> {
   return j('/commit', {
     method: 'POST',

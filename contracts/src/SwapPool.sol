@@ -28,6 +28,11 @@ contract SwapPool {
     /// takes the pool in its constructor, exists).
     address public operator;
 
+    /// @notice May reset reserves via adminSetReserves. The demo resets both
+    /// lanes to identical reserves before each swap, so the only difference
+    /// between them is the sandwich, never independent pool drift.
+    address public immutable admin;
+
     uint256 internal constant FEE_NUM = 997;
     uint256 internal constant FEE_DEN = 1000;
 
@@ -41,12 +46,33 @@ contract SwapPool {
 
     error NotOperator();
     error OperatorAlreadySet();
+    error NotAdmin();
     error ZeroAmount();
     error Slippage(uint256 got, uint256 minOut);
 
-    constructor(IERC20 base_, IERC20 quote_) {
+    constructor(IERC20 base_, IERC20 quote_, address admin_) {
         base = base_;
         quote = quote_;
+        admin = admin_;
+    }
+
+    /// @notice Reset reserves to exact targets, pulling any deficit from the
+    /// admin (who must approve this pool) and returning any surplus. Called
+    /// before each demo swap so both lanes start identical.
+    function adminSetReserves(uint256 baseTarget, uint256 quoteTarget) external {
+        if (msg.sender != admin) revert NotAdmin();
+        _reconcile(base, reserveBase, baseTarget);
+        _reconcile(quote, reserveQuote, quoteTarget);
+        reserveBase = baseTarget;
+        reserveQuote = quoteTarget;
+    }
+
+    function _reconcile(IERC20 token, uint256 current, uint256 target) internal {
+        if (target > current) {
+            _check(token.transferFrom(admin, address(this), target - current));
+        } else if (current > target) {
+            _check(token.transfer(admin, current - target));
+        }
     }
 
     /// @notice Wire the builder that owns this pool. Callable once.
