@@ -16,3 +16,6 @@ packages/explorer/.vite/
 crates/bte-wasm/pkg-seal/
 crates/bte-wasm/pkg-verify/
 packages/sdk/src/generated/
+.secrets/
+*.key
+tempo-keys.env

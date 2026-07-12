@@ -361,6 +361,80 @@ embarrassing overclaim on screen. `bestSandwich()` bisects for the revert wall.
 Do NOT call this an "anti-sandwich testnet". That is the Stage-2 artifact and it
 requires genuinely separated operators to mean anything. This is a playground.
 
+## Encrypted mempool ON-CHAIN: Tempo build (2026-07-12, in progress)
+
+Decision: make the playground real on a live chain. Chain evaluated four ways
+(Tempo, Hoodi, Robinhood Chain, Aptos); chose **Tempo Testnet (Moderato)**.
+
+Chain facts (verified 2026-07-12):
+- Tempo Moderato: chainId **42431**, RPC `https://rpc.moderato.tempo.xyz`,
+  ws `wss://rpc.moderato.tempo.xyz`, explorer `https://explore.testnet.tempo.xyz`,
+  ~0.5s BFT (Simplex) deterministic finality, Foundry supported.
+- NO native gas token: gas paid in stablecoins (pathUSD default), faucet gives
+  1M. `BALANCE`/`SELFBALANCE` return zero, `eth_getBalance` hardcoded -> pool
+  reserves MUST be ERC-20 balances, never native. New storage slot 250k gas,
+  account creation 250k, deploy 1000 gas/byte (keep per-swap SSTOREs minimal).
+- No stated MEV protection + sub-second blocks = Peal fills a real, uncontested
+  gap. THIS is why Tempo beat the others:
+  - Robinhood Chain (46630, 100ms, Arbitrum Orbit): FCFS ordering marketed as
+    MEV protection -> directly contradicts our sandwich premise. ETH faucet
+    starves a high-traffic relayer. Rejected despite best specs.
+  - Hoodi (560048, 12s, vanilla ETH): 12s slot kills the 2s feel; ETH faucet
+    throttled. Rejected.
+  - Aptos (APT): Move VM, NOT EVM. Would require rewriting every contract +
+    SDK in Move (Aave-scale rewrite). Rejected for now -> see APT-later below.
+
+Demo keys (GITIGNORED at .secrets/tempo-keys.env, testnet only):
+- deployer/coordinator 0xe27d43CE3E722A30cfb0011D08A4AA78CAA03a83 (deploys,
+  seeds pools, is the onlyCoordinator settler)
+- relayer 0x8610be02397258E85438A6d5bd115AA89aF41eBC (sponsors visitor swaps,
+  no-wallet UX)
+- searcher 0xCFAD2395dAbaea0F2d895Ce5235AE8a2a8319fCB (real sandwich bot, its
+  own key; MUST genuinely fail vs the sealed lane)
+User funds these from the faucet.
+
+### On-chain architecture (apples-to-apples, same adversary both lanes)
+The searcher is the BLOCK BUILDER on both lanes - the worst-case adversary an
+unprotected mempool faces. The ONLY difference between lanes is encryption.
+- `DemoToken` ERC-20 mintable (mUSDC, mETH) - reserves are token balances (Tempo
+  zeroes native).
+- `SwapPool` x*y=k, 0.3% fee, `swap` gated to an immutable operator (the builder
+  allowed to move it). Deployed twice: publicPool (operator=PublicBuilder),
+  pealPool (operator=PealMempool).
+- `PublicBuilder` models an unprotected mempool: `submitOrder` DEFERS execution
+  and emits the order in CLEARTEXT (searcher sees amount+direction+minOut);
+  `buildBlock([frontRun, victim, backRun])` lets the searcher execute its chosen
+  ordering -> real sandwich, real extraction, real explorer links. Deferred
+  execution is what makes front-running possible (must see pending-but-unexecuted).
+- `PealMempool`: `commitSealed(conditionId, ctHash)` emits only the HASH (searcher
+  has nothing to wrap); `executeBatch(conditionId, orders, merkleRoot)` is
+  onlyCoordinator, recomputes the merkle root over (position_le_u32 || payload)
+  leaves via the sha256 precompile to bind execution to the revealed batch, then
+  swaps in committed order. Sealed order payload = deterministic encoding the
+  contract can decode (NOT JSON) so leaf recomputation matches the reveal.
+- Merkle model mirrors coordinator merkle.rs + sdk anchor.ts: leaf =
+  sha256(pos_le_u32 || payload), parent = sha256(l||r), odd promoted. conditionId
+  on-chain = sha256(utf8(id)). ctHash = sha256(sealed ciphertext) (unchanged).
+- Settlement runs as a TS service (settler) watching the coordinator reveal API,
+  NOT inside the Rust coordinator - keeps the shipped devnet untouched (low
+  regression risk) and all chain/viem logic in TS.
+
+Speed: none of the latency is crypto. pre_decrypt already pipelined at freeze
+(engine.rs:194); engine ticks 500ms; combine+finalize ~35ms @ B=64. The 30s wait
+was round length + poll intervals. Target ~2s seal->settle: short cue, add a
+coordinator->client reveal push (SSE), tighten demo committee poll.
+
+Honest gap unchanged: dealer-trusted committee, operators don't verify the cue,
+coordinator provides the ordered plaintexts to executeBatch. State on the page.
+Contracts + settlement are real on Tempo; decentralisation is not yet.
+
+## APT / Move support (LATER, not now)
+Aptos is Move-VM, not EVM - our Solidity contracts + EVM SDK path do not run on
+it. A real APT target = a from-scratch Move rewrite of DemoToken/SwapPool/
+PublicBuilder/PealMempool + a Move-side anchor/settlement, with the wasm seal
+(chain-agnostic) reused. Treat as a separate product bet on the Move ecosystem,
+scoped only after the EVM/Tempo demo lands. Do NOT bridge; native Move or nothing.
+
 ## Telemetry (final run)
 - divergence: n/a (execution build; spec was the approved plan)
 - models: main loop + 1 explorer subagent; gates (executable) replaced skeptic panels
