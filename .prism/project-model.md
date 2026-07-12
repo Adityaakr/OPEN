@@ -472,7 +472,22 @@ STILL LOCAL-ONLY (not blocking): the relayer/searcher/settler run on this
 machine, not hosted. To make the public URL fully live, host the 3 agents
 (e.g. Railway) and set the explorer's VITE_RELAYER_URL to the hosted relayer.
 
-## Encrypted-mempool page REDESIGN (2026-07-12, in progress)
+## Encrypted-mempool page REDESIGN (2026-07-12, DONE)
+Shipped and verified in-browser (desktop + mobile). All requests met: title just
+"encrypted mempool", DEX-style swap card (pay/receive tokens, live quote, rate,
+slippage, min received, one Swap button, no wallet), a smooth blur/fade
+transition from swap -> comparison, two equal-height aligned lanes, CSS-3D
+scenes (sandwich clamps the blue victim between red attacker slabs with a flat
+front-run/your-swap/back-run legend + coins flying to searcher; sealed vault the
+searcher orbits then opens to a green ETH core at the cue), a big "$X kept on
+Peal" difference banner, and the trust text moved to a collapsible FAQ. Fixed a
+[hidden]-vs-display:flex gap bug. Added a KEEPER agent (packages/mempool-agents/
+src/keeper.ts, deployer key) that holds both pools at $3000/ETH so repeated demo
+swaps stay legible ($250k keeps getting sandwiched). Default swap $250k.
+Files: pages/mempool.ts, mempool/visuals.ts, mempool/chain.ts, style.css.
+
+--- original notes ---
+## (superseded) Encrypted-mempool page REDESIGN (2026-07-12, in progress)
 User wants a clean, engaging visual (current page too text-heavy). Direction:
 - Title just "encrypted mempool" (drop the long hero paragraph).
 - A real DEX-style swap card first: show pay/receive tokens, live quote, price
