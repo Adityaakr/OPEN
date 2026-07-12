@@ -23,7 +23,8 @@ const d = loadDeployment();
 const pub = publicClient(d);
 const wallet = walletFor(d, requireKey('RELAYER_PRIVATE_KEY'));
 const relayer = wallet.account.address;
-const PORT = Number(process.env.RELAYER_PORT ?? 8799);
+// Railway (and most hosts) inject PORT; fall back to RELAYER_PORT then a default.
+const PORT = Number(process.env.PORT ?? process.env.RELAYER_PORT ?? 8799);
 // Serialize every relayer send: concurrent visitor requests share one key.
 const tx = serializer();
 

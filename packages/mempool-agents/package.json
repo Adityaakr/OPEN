@@ -10,14 +10,14 @@
     "searcher": "tsx src/searcher.ts",
     "settler": "tsx src/settler.ts",
     "keeper": "tsx src/keeper.ts",
+    "start": "tsx src/${START:-relayer}.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "bte-sdk": "workspace:*",
+    "tsx": "^4.19.0",
     "viem": "^2.21.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
     "typescript": "^5.7.3",
     "@types/node": "^22.0.0"
   }

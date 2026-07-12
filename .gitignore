@@ -19,3 +19,6 @@ packages/sdk/src/generated/
 .secrets/
 *.key
 tempo-keys.env
+
+.DS_Store
+**/.DS_Store
