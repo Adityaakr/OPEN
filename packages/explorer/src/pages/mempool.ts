@@ -41,7 +41,11 @@ import {
 } from '../mempool/visuals';
 import { esc, fmtCountdown, truncMiddle } from '../util';
 
-const ROUND_SECS = 30;
+// The cue delay: the order seals to a condition that fires this many seconds
+// later, and the whole batch reveals then. Kept short for a snappy demo; the
+// only floor is that the on-chain commit must land before the cue fires, which
+// takes ~1-2s on a fast-finality chain, so 10s leaves comfortable margin.
+const ROUND_SECS = 10;
 const POLL_MS = 1500;
 const SLIP_BPS: Record<string, bigint> = { '0.001': 10n, '0.005': 50n, '0.01': 100n, '0.03': 300n };
 
