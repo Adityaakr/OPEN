@@ -1,4 +1,4 @@
-// The encrypted mempool, live on Tempo. A DEX-style swap that, once sent, opens
+// The encrypted mempool, live on a public testnet. A DEX-style swap that, once sent, opens
 // into (1) the outcome side-by-side: sandwiched in a public mempool, untouched
 // in the sealed Peal mempool, and (2) a technical walk-through of how Peal
 // actually did it, populated with the real cryptographic artifacts as they land:
@@ -153,7 +153,7 @@ export function renderMempool(root: HTMLElement): () => void {
           <div class="mp-swap">
             <div class="mp-swap-head">
               <span>Swap</span>
-              <span class="mp-swap-net">Tempo</span>
+              <span class="mp-swap-net">Testnet</span>
             </div>
             ${swapField('pay', 'You pay', 'USDC', '10000')}
             <div class="mp-swap-mid">
@@ -697,7 +697,7 @@ function swapField(id: 'pay' | 'recv', label: string, sym: Sym, value: string): 
       </div>
       <div class="mp-field-bot">
         <span class="mp-usd" id="mp-${id}-usd">$0</span>
-        <span class="mp-chain">on Tempo</span>
+        <span class="mp-chain">on testnet</span>
       </div>
     </div>`;
 }
@@ -725,11 +725,11 @@ function faqHtml(cfg: MempoolConfig): string {
   const items: Array<[string, string]> = [
     [
       'Is any of this simulated?',
-      `No. Both pools are real contracts on chain ${cfg.chainId} (Tempo). The searcher is a real bot with its own key; on the public lane it submits real front-run and back-run transactions, and on the peal lane it sees only a ciphertext hash and does nothing. Your order is sealed through the real committee and settled by <span class="mono">PealMempool.executeBatch</span>, which re-derives the batch's merkle root and refuses anything that is not the revealed batch.`,
+      `No. Both pools are real contracts on chain ${cfg.chainId}. The searcher is a real bot with its own key; on the public lane it submits real front-run and back-run transactions, and on the peal lane it sees only a ciphertext hash and does nothing. Your order is sealed through the real committee and settled by <span class="mono">PealMempool.executeBatch</span>, which re-derives the batch's merkle root and refuses anything that is not the revealed batch.`,
     ],
     [
       'How can I verify it myself?',
-      `Everything is on-chain. The transaction links above open the Tempo explorer. The contracts:` +
+      `Everything is on-chain. The transaction links above open the block explorer. The contracts:` +
         contractsList(cfg),
     ],
     [
