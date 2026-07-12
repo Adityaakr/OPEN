@@ -244,7 +244,7 @@ export function createFxEncrypt(): Fx {
     <div class="fx-stage">
       <div class="fx-card">
         <div class="fx-face fx-plain">
-          <span class="fx-plain-a">250,000 USDC</span>
+          <span class="fx-plain-a">10,000 USDC</span>
           <span class="fx-plain-arrow"></span>
           <span class="fx-plain-b">ETH</span>
         </div>
@@ -343,7 +343,7 @@ export function createFxExposed(): Fx {
   root.innerHTML = `
     <div class="fx-stage">
       <div class="fx-open-card">
-        <span class="fx-open-a">250,000 USDC</span>
+        <span class="fx-open-a">10,000 USDC</span>
         <span class="fx-plain-arrow"></span>
         <span class="fx-open-b">ETH</span>
       </div>

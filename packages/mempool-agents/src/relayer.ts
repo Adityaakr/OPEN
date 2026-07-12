@@ -74,11 +74,13 @@ async function state() {
   return { publicPool: pubR, pealPool: pealR };
 }
 
-// Reset target: a $90M pool at $3,000/ETH. Both lanes are reset to exactly this
+// Reset target: a $3M pool at $3,000/ETH. Both lanes are reset to exactly this
 // before each swap, so the only difference between them is the sandwich, never
-// independent pool drift.
-const TARGET_BASE = 30_000_000n * 10n ** 18n;
-const TARGET_QUOTE = 10_000n * 10n ** 18n;
+// independent pool drift. Shallow enough that a searcher will sandwich swaps
+// from ~$5k up (a deeper pool only sandwiches whale trades). Drift is a
+// non-issue because /prepare resets both pools on every swap.
+const TARGET_BASE = 900_000n * 10n ** 18n;
+const TARGET_QUOTE = 300n * 10n ** 18n;
 
 /** Reset both pools to identical reserves. Called before each swap so the two
  * lanes start from the same state. */

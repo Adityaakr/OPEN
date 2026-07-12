@@ -50,9 +50,9 @@ const COIN: Record<Sym, string> = {
   USDC: '<i class="mp-coin mp-coin-usdc"></i>USDC',
   ETH: '<i class="mp-coin mp-coin-eth"></i>ETH',
 };
-/** Sensible default pay amount per token, both ~ $250k so either direction
- * gets sandwiched on the deep pool. */
-const DEFAULT_AMT: Record<Sym, string> = { USDC: '250000', ETH: '80' };
+/** Default pay amount per token (~$9-10k). The pool is shallow enough that
+ * swaps from ~$5k up get sandwiched. */
+const DEFAULT_AMT: Record<Sym, string> = { USDC: '10000', ETH: '3' };
 
 const usd0 = (n: number) =>
   n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -155,7 +155,7 @@ export function renderMempool(root: HTMLElement): () => void {
               <span>Swap</span>
               <span class="mp-swap-net">Tempo</span>
             </div>
-            ${swapField('pay', 'You pay', 'USDC', '250000')}
+            ${swapField('pay', 'You pay', 'USDC', '10000')}
             <div class="mp-swap-mid">
               <button type="button" class="mp-swap-swapicon" id="mp-flip" aria-label="flip the pair"></button>
             </div>
