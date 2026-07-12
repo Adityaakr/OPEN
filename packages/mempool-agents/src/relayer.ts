@@ -75,17 +75,45 @@ async function state() {
   return { publicPool: pubR, pealPool: pealR };
 }
 
-// Reset target: a $3M pool at $3,000/ETH. Both lanes are reset to exactly this
-// before each swap, so the only difference between them is the sandwich, never
-// independent pool drift. Shallow enough that a searcher will sandwich swaps
-// from ~$5k up (a deeper pool only sandwiches whale trades). Drift is a
-// non-issue because /prepare resets both pools on every swap.
+// Reset target. The USDC-side depth is fixed; the ETH reserve is derived from
+// the live ETH/USD price so the pool's implied rate tracks the real market.
+// Keeping the USDC depth constant means the sandwich behaviour is identical at
+// any price (a searcher sandwiches swaps from ~$5k up). Both lanes are reset to
+// exactly this before each swap, so the only difference between them is the
+// sandwich, never independent pool drift.
 const TARGET_BASE = 900_000n * 10n ** 18n;
-const TARGET_QUOTE = 300n * 10n ** 18n;
+const FALLBACK_ETH_USD = 2500;
 
-/** Reset both pools to identical reserves. Called before each swap so the two
- * lanes start from the same state. */
+// Live ETH/USD from CoinGecko, cached 60s. Falls back to the last good value
+// (or FALLBACK_ETH_USD) if the fetch fails or is rate-limited, so a swap never
+// blocks on the price feed.
+let priceCache = { usd: FALLBACK_ETH_USD, at: 0 };
+async function ethUsd(): Promise<number> {
+  const now = Date.now();
+  if (now - priceCache.at < 60_000) return priceCache.usd;
+  try {
+    const r = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+      { signal: AbortSignal.timeout(5000) },
+    );
+    const j = (await r.json()) as { ethereum?: { usd?: number } };
+    const p = j.ethereum?.usd;
+    if (typeof p === 'number' && p > 0) priceCache = { usd: p, at: now };
+  } catch {
+    /* keep the last good price / fallback */
+  }
+  return priceCache.usd;
+}
+
+/** ETH reserve (wad) so that base/quote equals the given price. */
+function targetQuote(priceUsd: number): bigint {
+  return (TARGET_BASE * 1000n) / BigInt(Math.round(priceUsd * 1000));
+}
+
+/** Reset both pools to identical reserves at the live price. Called before each
+ * swap so the two lanes start from the same, realistic state. */
 async function prepare() {
+  const quote = targetQuote(await ethUsd());
   // Submit both pool resets back-to-back (the per-key serializer keeps their
   // nonces in order), then wait for both receipts at once instead of blocking
   // on the first before submitting the second. Halves the reset latency.
@@ -95,7 +123,7 @@ async function prepare() {
       await tx(() =>
         wallet.writeContract({
           address: pool, abi: swapPoolAbi, functionName: 'adminSetReserves',
-          args: [TARGET_BASE, TARGET_QUOTE], chain: chainFor(d), ...writeGas,
+          args: [TARGET_BASE, quote], chain: chainFor(d), ...writeGas,
         }),
       ),
     );
@@ -260,6 +288,12 @@ async function main(): Promise<void> {
   await ensureApproval(d.usdc, d.pealPool);
   await ensureApproval(d.eth, d.pealPool);
   server.listen(PORT, () => console.log(`[relayer] ${relayer} listening on :${PORT} (from block ${bootBlock})`));
+  // Prime both pools to the live price so a fresh page load shows a realtime
+  // rate even before anyone swaps. Best-effort; a failure here is harmless
+  // since /prepare runs again before every swap.
+  prepare()
+    .then(() => console.log(`[relayer] pools primed at $${priceCache.usd}/ETH`))
+    .catch((e) => console.error('[relayer] boot prepare failed:', e instanceof Error ? e.message : e));
 }
 
 void main();
