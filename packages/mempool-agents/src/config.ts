@@ -72,6 +72,17 @@ export function requireKey(name: string): string {
   return v.startsWith('0x') ? v : `0x${v}`;
 }
 
+/** Wait for a receipt but never hang forever: Tempo's testnet mempool can stall
+ * a transaction, and an unbounded wait would wedge the whole service behind it.
+ * Rejects after `timeoutMs` so the caller can surface an error and move on. */
+export async function waitReceipt(
+  pub: ReturnType<typeof publicClient>,
+  hash: `0x${string}`,
+  timeoutMs = 60_000,
+): Promise<void> {
+  await pub.waitForTransactionReceipt({ hash, timeout: timeoutMs });
+}
+
 /** Serialize writes from one key: two transactions fetched the same nonce
  * concurrently get one rejected as "nonce too low". Returns a run() that
  * chains calls so only one is in flight at a time. */

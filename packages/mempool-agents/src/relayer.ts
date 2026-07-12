@@ -17,7 +17,7 @@ import {
   type Hex,
 } from 'viem';
 import { erc20Abi, pealMempoolAbi, publicBuilderAbi, swapPoolAbi } from './abi.js';
-import { chainFor, loadDeployment, publicClient, requireKey, serializer, walletFor, writeGas } from './config.js';
+import { chainFor, loadDeployment, publicClient, requireKey, serializer, waitReceipt, walletFor, writeGas } from './config.js';
 
 const d = loadDeployment();
 const pub = publicClient(d);
@@ -40,7 +40,7 @@ async function ensureApproval(token: Address, spender: Address): Promise<void> {
       chain: chainFor(d), ...writeGas,
     }),
   );
-  await pub.waitForTransactionReceipt({ hash });
+  await waitReceipt(pub, hash);
 }
 
 async function reserves(pool: Address): Promise<{ base: string; quote: string }> {
@@ -87,7 +87,8 @@ async function publicSwap(body: { amountIn: string; minOut: string; baseToQuote:
       args: [order], chain: chainFor(d), ...writeGas,
     }),
   );
-  const rcpt = await pub.waitForTransactionReceipt({ hash });
+  await waitReceipt(pub, hash);
+  const rcpt = await pub.getTransactionReceipt({ hash });
   let orderId: Hex | null = null;
   for (const log of rcpt.logs) {
     try {
@@ -110,7 +111,7 @@ async function commit(body: { conditionId: string; ctHash: string }) {
       args: [cond, ct], chain: chainFor(d), ...writeGas,
     }),
   );
-  await pub.waitForTransactionReceipt({ hash });
+  await waitReceipt(pub, hash);
   return { txHash: hash };
 }
 
