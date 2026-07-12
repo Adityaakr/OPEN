@@ -29,7 +29,10 @@ import {
   createFxBatch,
   createFxCommit,
   createFxEncrypt,
+  createFxExposed,
+  createFxFrontrun,
   createFxReveal,
+  createFxSandwich,
   createSandwichScene,
   createVaultScene,
   type Fx,
@@ -57,7 +60,7 @@ const usd2 = (n: number) =>
 const num = (s: string | number, dp = 4) =>
   Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
 
-/** Trust-building copy for the four pipeline steps. No em-dashes (brand rule). */
+/** Trust-building copy for the four Peal steps. No em-dashes (brand rule). */
 const FLOW_COPY = [
   `Your order is encrypted on your own device before it reaches the network. The amount, the direction, and the token stay sealed inside a ciphertext addressed to the committee's key. No relayer, no node, and no operator ever sees it in the clear.`,
   `The ciphertext drops into a fixed batch of 64 slots. The other slots are indistinguishable decoys, so no observer can tell how many real orders are inside, or which slot is yours. Your size, your timing, and your intent disappear into the crowd.`,
@@ -65,16 +68,25 @@ const FLOW_COPY = [
   `At the cue, a quorum of operators each return one 48-byte share. Together they open the whole batch at once, after the ordering is already fixed, so there is nothing left to front-run. Every share is checked with a public pairing equation, and the settlement contract re-derives the batch's merkle root and rejects any mismatch.`,
 ];
 
-function flowStep(n: number, chip: string, title: string, copy: string): string {
+/** The three moves of a sandwich, on the public lane. */
+const PUB_COPY = [
+  `On a normal chain your swap waits in the public mempool in plain sight. Anyone watching, including automated searchers, can read the amount, the direction, and the price you are willing to accept, all before it executes.`,
+  `Seeing your trade coming, the searcher places its own buy just ahead of yours. That pushes the pool price up, so your swap is now lined up to fill at a worse rate than you were quoted.`,
+  `Your swap executes at the price the searcher left behind, and the searcher immediately sells back into it. You receive less than your quote, and that difference, sized to your own slippage limit, becomes the searcher's profit.`,
+];
+
+function flowStep(pub: boolean, n: number, chip: string, title: string, copy: string): string {
+  const p = pub ? 'p' : '';
+  const chipCls = pub ? 'mp-chip-red' : 'mp-chip-blue';
   return `
-    <li class="mp-flow-step" id="mp-step-${n}">
+    <li class="mp-flow-step${pub ? ' mp-flow-pub' : ''}" id="mp-${p}step-${n}">
       <div class="mp-flow-rail"><span class="mp-flow-dot">${n}</span></div>
       <div class="mp-flow-card">
-        <div class="mp-flow-viz" id="mp-viz-${n}"></div>
+        <div class="mp-flow-viz" id="mp-${p}viz-${n}"></div>
         <div class="mp-flow-text">
-          <div class="mp-flow-top"><h4>${esc(title)}</h4><span class="mp-lane-chip mp-chip-blue">${esc(chip)}</span></div>
+          <div class="mp-flow-top"><h4>${esc(title)}</h4><span class="mp-lane-chip ${chipCls}">${esc(chip)}</span></div>
           <p class="mp-flow-copy">${copy}</p>
-          <div class="mp-flow-data" id="mp-data-${n}"><div class="mp-lane-status"><span class="mp-spinner"></span>waiting…</div></div>
+          <div class="mp-flow-data" id="mp-${p}data-${n}"><div class="mp-lane-status"><span class="mp-spinner"></span>waiting…</div></div>
         </div>
       </div>
     </li>`;
@@ -181,16 +193,28 @@ export function renderMempool(root: HTMLElement): () => void {
           </div>
           <div class="mp-diff" id="mp-diff" hidden></div>
 
+          <section class="mp-flow mp-flow-attack" id="mp-pubflow" hidden>
+            <div class="mp-proofs-head">
+              <h3>how the public mempool takes your money</h3>
+              <p>the same swap in a normal, readable mempool. three moves, and the searcher wins.</p>
+            </div>
+            <ol class="mp-flow-list">
+              ${flowStep(true, 1, 'exposed', 'your order is public', PUB_COPY[0])}
+              ${flowStep(true, 2, 'front-run', 'the searcher jumps ahead', PUB_COPY[1])}
+              ${flowStep(true, 3, 'sandwiched', 'you fill worse, it takes the spread', PUB_COPY[2])}
+            </ol>
+          </section>
+
           <section class="mp-flow" id="mp-proofs" hidden>
             <div class="mp-proofs-head">
               <h3>how Peal keeps your order private</h3>
               <p>four steps, and every value below is a real artifact from your swap, verifiable on-chain.</p>
             </div>
             <ol class="mp-flow-list">
-              ${flowStep(1, 'private', 'encrypted on your device', FLOW_COPY[0])}
-              ${flowStep(2, 'unlinkable', 'hidden inside a batch', FLOW_COPY[1])}
-              ${flowStep(3, 't-of-n', 'sealed to a distributed committee', FLOW_COPY[2])}
-              ${flowStep(4, 'verifiable', 'revealed and proven on-chain', FLOW_COPY[3])}
+              ${flowStep(false, 1, 'private', 'encrypted on your device', FLOW_COPY[0])}
+              ${flowStep(false, 2, 'unlinkable', 'hidden inside a batch', FLOW_COPY[1])}
+              ${flowStep(false, 3, 't-of-n', 'sealed to a distributed committee', FLOW_COPY[2])}
+              ${flowStep(false, 4, 'verifiable', 'revealed and proven on-chain', FLOW_COPY[3])}
             </ol>
           </section>
 
@@ -281,6 +305,7 @@ export function renderMempool(root: HTMLElement): () => void {
     compare.classList.remove('is-in');
     compare.hidden = true;
     appEl.querySelector<HTMLElement>('#mp-diff')!.hidden = true;
+    appEl.querySelector<HTMLElement>('#mp-pubflow')!.hidden = true;
     appEl.querySelector<HTMLElement>('#mp-proofs')!.hidden = true;
     appEl.querySelector<HTMLButtonElement>('#mp-again')!.hidden = true;
     swapWrap.hidden = false;
@@ -337,9 +362,16 @@ export function renderMempool(root: HTMLElement): () => void {
     appEl.querySelector<HTMLElement>('#mp-vis-peal')!.appendChild(vault.el);
     sandwich.play();
     vault.play();
-    // The 4 flow animations loop continuously so the process is always visible.
+    // The flow animations loop continuously so the process is always visible.
     fxScenes = [createFxEncrypt(), createFxBatch(), createFxCommit(), createFxReveal()];
     fxScenes.forEach((fx, i) => appEl.querySelector<HTMLElement>(`#mp-viz-${i + 1}`)!.appendChild(fx.el));
+
+    // Public-lane attack pipeline: the first two moves are known immediately.
+    const pubFx = [createFxExposed(), createFxFrontrun(), createFxSandwich()];
+    pubFx.forEach((fx, i) => appEl.querySelector<HTMLElement>(`#mp-pviz-${i + 1}`)!.appendChild(fx.el));
+    fxScenes.push(...pubFx);
+    appEl.querySelector<HTMLElement>('#mp-pubflow')!.hidden = false;
+    fillPub12(amount, payUnit, recvUnit, fromWad(minOut));
 
     const publicRes = appEl.querySelector<HTMLElement>('#mp-res-public')!;
     const pealRes = appEl.querySelector<HTMLElement>('#mp-res-peal')!;
@@ -398,7 +430,44 @@ export function renderMempool(root: HTMLElement): () => void {
     busy = false;
   }
 
-  // ---- the 4 pipeline steps (real BTE artifacts) ------------------------
+  // ---- public attack pipeline (3 moves of a sandwich) -------------------
+
+  function fillPub12(amount: number, payUnit: Sym, recvUnit: Sym, minOut: string): void {
+    const pd = (n: number) => appEl.querySelector<HTMLElement>(`#mp-pdata-${n}`)!;
+    const done = (n: number) => appEl.querySelector<HTMLElement>(`#mp-pstep-${n}`)?.classList.add('is-done');
+    pd(1).innerHTML =
+      proofRow('you swap', `<b>${num(amount, payUnit === 'USDC' ? 0 : 4)}</b> ${payUnit} to ${recvUnit}`) +
+      proofRow('you accept as low as', `${num(minOut, recvUnit === 'USDC' ? 2 : 4)} ${recvUnit}`) +
+      proofRow('the searcher sees', `<span class="mp-danger">all of it</span>`);
+    done(1);
+    pd(2).innerHTML =
+      proofRow('front-run', `placed just ahead of your swap`) +
+      proofRow('effect', `<span class="mp-danger">price pushed against you</span>`);
+    done(2);
+  }
+
+  function fillPub3(
+    sandwiched: boolean,
+    victimOut: string,
+    fair: string,
+    profitUsd: number,
+    recvUnit: Sym,
+    txHash: string,
+  ): void {
+    const dp = recvUnit === 'USDC' ? 2 : 4;
+    const body = appEl.querySelector<HTMLElement>('#mp-pdata-3')!;
+    body.innerHTML = sandwiched
+      ? proofRow('you received', `<span class="mp-danger"><b>${num(victimOut, dp)}</b> ${recvUnit}</span>`) +
+        proofRow('you were quoted', `${num(fair, dp)} ${recvUnit}`) +
+        proofRow('the searcher took', `<span class="mp-danger"><b>${usd2(profitUsd)}</b></span>`) +
+        proofRow('on-chain', `${link(txHash)}`)
+      : proofRow('you received', `${num(victimOut, dp)} ${recvUnit}, in full`) +
+        proofRow('the searcher took', `nothing, too small to sandwich`) +
+        proofRow('on-chain', `${link(txHash)}`);
+    appEl.querySelector<HTMLElement>('#mp-pstep-3')?.classList.add('is-done');
+  }
+
+  // ---- the 4 Peal pipeline steps (real BTE artifacts) -------------------
 
   function stepData(n: number): HTMLElement {
     return appEl.querySelector<HTMLElement>(`#mp-data-${n}`)!;
@@ -506,6 +575,7 @@ export function renderMempool(root: HTMLElement): () => void {
             line: `the searcher took <b>${usd2(profitUsd)}</b>`,
             tx: link(r.txHash ?? ''),
           });
+          fillPub3(true, r.victimOut ?? '', fromWad(fairWei), profitUsd, ctx.recvUnit, r.txHash ?? '');
         } else {
           sandwich?.resolve({ lostUsd: 0 });
           resEl.innerHTML = resultHtml({
@@ -515,6 +585,7 @@ export function renderMempool(root: HTMLElement): () => void {
             line: `filled in full, too small to sandwich`,
             tx: link(r.txHash ?? ''),
           });
+          fillPub3(false, r.victimOut ?? '', fromWad(fairWei), 0, ctx.recvUnit, r.txHash ?? '');
         }
         resolve({ sandwiched: !!r.sandwiched, victimOut: r.victimOut ?? fromWad(fairWei), profit: r.profit ?? '0' });
       };

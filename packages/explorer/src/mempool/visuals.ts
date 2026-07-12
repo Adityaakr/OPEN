@@ -333,3 +333,60 @@ export function createFxReveal(n = 5, t = 3): Fx {
   root.appendChild(stage);
   return { el: root, destroy: () => root.remove() };
 }
+
+// ---- public-lane attack scenes (how the sandwich is built) -------------
+
+/** Step 1: your order sits in the public mempool in the clear, and a searcher
+ *  is watching. A scan beam sweeps the readable order. */
+export function createFxExposed(): Fx {
+  const root = el('fx fx-exposed');
+  root.innerHTML = `
+    <div class="fx-stage">
+      <div class="fx-open-card">
+        <span class="fx-open-a">250,000 USDC</span>
+        <span class="fx-plain-arrow"></span>
+        <span class="fx-open-b">ETH</span>
+      </div>
+      <div class="fx-beam"></div>
+      <div class="fx-eye"><span class="fx-eye-dot"></span></div>
+    </div>`;
+  return { el: root, destroy: () => root.remove() };
+}
+
+/** Step 2: the searcher jumps ahead of you in the block and pushes the price. */
+export function createFxFrontrun(): Fx {
+  const root = el('fx fx-frontrun');
+  root.innerHTML = `
+    <div class="fx-stage">
+      <div class="fx-lane">
+        <div class="fx-tok fx-tok-you"><span>you</span></div>
+        <div class="fx-tok fx-tok-searcher"><span>searcher</span></div>
+      </div>
+      <div class="fx-price"><span class="fx-price-up"></span><span class="fx-price-label">price ↑</span></div>
+    </div>`;
+  return { el: root, destroy: () => root.remove() };
+}
+
+/** Step 3: your swap fills at the worse price and the searcher unwinds, taking
+ *  the spread. Attacker slabs clamp the victim; value flies to the searcher. */
+export function createFxSandwich(): Fx {
+  const root = el('fx fx-sandwich2');
+  const stage = el('fx-stage');
+  const scene = el('fx-sw-scene');
+  scene.append(
+    el('fx-slab fx-slab-atk fx-slab-back'),
+    el('fx-slab fx-slab-victim'),
+    el('fx-slab fx-slab-atk fx-slab-front'),
+  );
+  const coins = el('fx-sw-coins');
+  for (let i = 0; i < 5; i++) {
+    const c = el('fx-sw-coin');
+    c.style.setProperty('--i', String(i));
+    coins.appendChild(c);
+  }
+  scene.appendChild(coins);
+  stage.appendChild(scene);
+  stage.appendChild(el('fx-sw-searcher', '<span>searcher</span>'));
+  root.appendChild(stage);
+  return { el: root, destroy: () => root.remove() };
+}

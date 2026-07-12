@@ -3191,3 +3191,91 @@ body.landing-page main {
   .fx-reveal2 .fx-core-lock { opacity: 0; }
   .fx-anchor { opacity: 1; }
 }
+
+/* ---- attack pipeline: red theme ---- */
+.mp-flow-attack { margin-top: 24px; }
+.mp-flow-pub.is-done .mp-flow-dot { background: var(--red); border-color: var(--red); }
+.mp-flow-pub.is-done .mp-flow-card { border-color: var(--red-border); box-shadow: 0 6px 22px rgb(220 38 38 / 0.06); }
+
+/* ---- attack fx 1: exposed order + watching eye ---- */
+.fx-exposed .fx-stage { width: 208px; height: 118px; }
+.fx-open-card {
+  position: absolute; inset: 12px 8px; border-radius: 13px; background: #fff; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.07); overflow: hidden;
+}
+.fx-beam {
+  position: absolute; left: 8px; right: 8px; height: 20px; border-radius: 6px;
+  background: linear-gradient(180deg, transparent, rgb(220 38 38 / 0.22), transparent);
+  animation: fx-beam 2.8s ease-in-out infinite; pointer-events: none;
+}
+@keyframes fx-beam { 0% { top: 6px; } 50% { top: 92px; } 100% { top: 6px; } }
+.fx-eye {
+  position: absolute; top: -6px; right: -4px; width: 30px; height: 30px; border-radius: 999px;
+  background: var(--red-weak); border: 1px solid var(--red-border);
+  display: flex; align-items: center; justify-content: center;
+}
+.fx-eye::before {
+  content: ''; width: 16px; height: 16px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;
+  animation: fx-blink 2.8s ease-in-out infinite;
+}
+@keyframes fx-blink { 0%,44%,56%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.2); } }
+.fx-eye-dot { display: none; }
+
+/* ---- attack fx 2: front-run (searcher jumps ahead, price up) ---- */
+.fx-frontrun .fx-stage { width: 216px; height: 120px; }
+.fx-lane {
+  position: absolute; left: 0; right: 0; top: 42px; height: 40px; border-radius: 10px;
+  background: var(--surface); border: 1px dashed var(--border);
+}
+.fx-tok {
+  position: absolute; top: 50px; width: 66px; height: 24px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff;
+}
+.fx-tok-you { left: 96px; background: linear-gradient(135deg, #60a5fa, #2563eb); z-index: 1; }
+.fx-tok-searcher { left: 96px; background: linear-gradient(135deg, #f87171, #dc2626); animation: fx-jump 3s ease-in-out infinite; }
+@keyframes fx-jump {
+  0%,12% { left: 150px; opacity: 0; transform: scale(0.9); }
+  24% { opacity: 1; }
+  50%,100% { left: 20px; opacity: 1; transform: scale(1); }
+}
+.fx-price { position: absolute; right: 8px; top: 6px; display: flex; align-items: center; gap: 5px; color: var(--red); font-size: 12px; font-weight: 700; }
+.fx-price-up {
+  width: 14px; height: 14px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23dc2626' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17L17 7M17 7H8M17 7v9'/%3E%3C/svg%3E") center/contain no-repeat;
+  animation: fx-price-up 3s ease-in-out infinite;
+}
+@keyframes fx-price-up { 0%,40% { opacity: 0.3; transform: translateY(3px); } 60%,100% { opacity: 1; transform: translateY(0); } }
+
+/* ---- attack fx 3: the sandwich clamp ---- */
+.fx-sandwich2 .fx-stage { width: 190px; height: 150px; perspective: 640px; }
+.fx-sw-scene { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(58deg) rotateZ(-30deg); }
+.fx-slab {
+  position: absolute; left: 22px; top: 46px; width: 146px; height: 58px; border-radius: 12px;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 0.1);
+}
+.fx-slab-atk { background: linear-gradient(135deg, #fecaca, #f87171); }
+.fx-slab-victim { background: linear-gradient(135deg, #93c5fd, #2563eb); z-index: 2; }
+.fx-slab-front { animation: fx-clamp-front 3.2s ease-in-out infinite; }
+.fx-slab-back { animation: fx-clamp-back 3.2s ease-in-out infinite; }
+@keyframes fx-clamp-front { 0%,20% { transform: translateZ(52px); } 55%,100% { transform: translateZ(12px); } }
+@keyframes fx-clamp-back { 0%,20% { transform: translateZ(-52px); } 55%,100% { transform: translateZ(-12px); } }
+.fx-sw-coins { position: absolute; inset: 0; pointer-events: none; }
+.fx-sw-coin {
+  position: absolute; left: 88px; top: 72px; width: 13px; height: 13px; border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #fde68a, #f59e0b); opacity: 0;
+  animation: fx-coin 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * 90ms + 1.6s);
+}
+@keyframes fx-coin { 0% { opacity: 0; transform: translate(0,0) scale(0.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(66px,-86px) scale(1); } }
+.fx-sw-searcher {
+  position: absolute; top: 4px; right: -4px; z-index: 5; font-size: 11px; font-weight: 600; color: var(--red-text);
+  background: var(--red-weak); border: 1px solid var(--red-border); border-radius: 999px; padding: 3px 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-beam, .fx-eye::before, .fx-tok-searcher, .fx-price-up, .fx-slab-front, .fx-slab-back, .fx-sw-coin { animation: none !important; }
+  .fx-tok-searcher { left: 20px; opacity: 1; }
+  .fx-slab-front { transform: translateZ(12px); }
+  .fx-slab-back { transform: translateZ(-12px); }
+}
