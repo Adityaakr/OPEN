@@ -574,6 +574,19 @@ To change the threshold later, just change TARGET_BASE/QUOTE in relayer.ts and
 restart (no redeploy). NB test /public-swap with a real minOut (fair*(1-slip)),
 not minOut=1, or the searcher front-runs the whole pool.
 
+### Encrypted-mempool landing page (2026-07-13)
+User supplied a Peal design-system zip with a `mempool-landing` UI kit (React +
+Babel). Ported it to a clean vanilla-TS explorer route at #/mempool (pages/
+mempool-landing.ts) instead of pulling in React: split-mempool hero with a
+10-beat sandwich->bloom loop (phase classes is-scan/is-attack/is-dissolved/
+is-finalize/is-bloom driven by setInterval), footnoted problem stats, 6-step
+pipeline, batched-vs-per-tx-vs-per-epoch table + O(n) diagram + pull-quote,
+capsule anatomy + committee ring, integration snippet, honest-limits, roadmap
+(chain-level = "in build"), CTA. Hero "try the playground" -> #/encrypted-mempool
+(the live demo). Design tokens already matched explorer CSS; added the missing
+warm/code/accent-strong vars. Nav "encrypted mempool" now -> #/mempool. All
+landing styles are .ml-* in style.css; sections use the existing scroll-reveal.
+
 ### Tempo-under-load learnings (robustness)
 Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything
 behind it; symptom: relayer /commit hangs forever). Fixes applied: TX_GAS
