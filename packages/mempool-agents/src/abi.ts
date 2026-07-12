@@ -12,9 +12,17 @@ export const erc20Abi = [
     inputs: [{ name: 'who', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const;
 
+export const demoTokenAbi = [
+  { type: 'function', name: 'mint', stateMutability: 'nonpayable',
+    inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'balanceOf', stateMutability: 'view',
+    inputs: [{ name: 'who', type: 'address' }], outputs: [{ type: 'uint256' }] },
+] as const;
+
 export const swapPoolAbi = [
   { type: 'function', name: 'reserveBase', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'reserveQuote', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'sync', stateMutability: 'nonpayable', inputs: [], outputs: [] },
   { type: 'function', name: 'getAmountOut', stateMutability: 'pure',
     inputs: [{ name: 'amountIn', type: 'uint256' }, { name: 'reserveIn', type: 'uint256' }, { name: 'reserveOut', type: 'uint256' }],
     outputs: [{ type: 'uint256' }] },

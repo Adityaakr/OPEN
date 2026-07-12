@@ -9,6 +9,7 @@
     "relayer": "tsx src/relayer.ts",
     "searcher": "tsx src/searcher.ts",
     "settler": "tsx src/settler.ts",
+    "keeper": "tsx src/keeper.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
