@@ -75,7 +75,7 @@ export function createSandwichScene(): Scene {
     resolve({ lostUsd }) {
       root.dataset.phase = 'attacked';
       if (lostUsd && lostUsd > 0) {
-        loss.innerHTML = `<span class="mp3d-loss-num">-$${lostUsd.toFixed(0)}</span><span class="mp3d-loss-cap">taken by the searcher</span>`;
+        loss.innerHTML = `<span class="mp3d-loss-num">-$${Math.round(lostUsd).toLocaleString('en-US')}</span><span class="mp3d-loss-cap">taken by the searcher</span>`;
       } else {
         loss.innerHTML = `<span class="mp3d-loss-cap">too small to sandwich</span>`;
       }

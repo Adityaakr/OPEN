@@ -593,17 +593,20 @@ export function renderMempool(root: HTMLElement): () => void {
         clearInterval(id);
         const fair = Number(fromWad(fairWei));
         if (r.sandwiched) {
+          // One figure everywhere: the shortfall from the fair quote, i.e. what
+          // the sandwich cost the victim. The 3D scene, this status line, the
+          // proof row, and the peal-vs-public headline all use it, so the demo
+          // never shows two different "the searcher took" numbers.
           const lostUsd = toUsd(fair - Number(r.victimOut), ctx.recvUnit, ctx.price);
-          const profitUsd = toUsd(Number(r.profit), ctx.payUnit, ctx.price);
           sandwich?.resolve({ lostUsd });
           resEl.innerHTML = resultHtml({
             tone: 'bad',
             got: r.victimOut ?? '',
             unit: ctx.recvUnit,
-            line: `the searcher took <b>${usd2(profitUsd)}</b>`,
+            line: `the searcher took <b>${usd2(lostUsd)}</b>`,
             tx: link(r.txHash ?? ''),
           });
-          fillPub3(true, r.victimOut ?? '', fromWad(fairWei), profitUsd, ctx.recvUnit, r.txHash ?? '');
+          fillPub3(true, r.victimOut ?? '', fromWad(fairWei), lostUsd, ctx.recvUnit, r.txHash ?? '');
         } else {
           sandwich?.resolve({ lostUsd: 0 });
           resEl.innerHTML = resultHtml({
