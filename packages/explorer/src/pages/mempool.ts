@@ -400,7 +400,7 @@ export function renderMempool(root: HTMLElement): () => void {
 
     fillPub12(amount, payUnit, recvUnit, fromWad(minOut));
     publicRes.innerHTML = laneStatus('the searcher is reading your order in the clear…');
-    pealRes.innerHTML = laneStatus(`sealed. cue in ${ROUND_SECS}s. the searcher sees only a hash…`);
+    pealRes.innerHTML = laneStatus(`sealed · cue in ${ROUND_SECS}s · searcher sees only a hash`);
 
     // The committee is known before we even seal; fill step 1's threshold.
     const committee = await client.committee();
@@ -421,7 +421,7 @@ export function renderMempool(root: HTMLElement): () => void {
     commitTx = commit.txHash;
     fillStep3(committee, commitTx);
     pealRes.innerHTML = laneStatus(
-      `committed on-chain as a hash (${link(commit.txHash)}). cue in ~${ROUND_SECS}s…`,
+      `committed on-chain · ${link(commit.txHash)} · cue in ${ROUND_SECS}s`,
     );
 
     const pub = await submitPublicSwap({

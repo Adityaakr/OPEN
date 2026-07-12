@@ -328,7 +328,6 @@ export function renderMempoolLanding(root: HTMLElement): () => void {
         cannot read. when the block is final, the whole batch opens at once, and the sandwich never had anything to see.</p>
         <div class="ml-hero-ctas scroll-reveal">
           <a class="ml-btn ml-btn-dark" href="#/encrypted-mempool">try the playground</a>
-          <a class="ml-btn" href="#/philosophy">read the whitepaper</a>
         </div>
 
         <div class="ml-stage scroll-reveal">
@@ -418,8 +417,6 @@ export function renderMempoolLanding(root: HTMLElement): () => void {
           <p class="ml-cta-title">seal now. reveal on cue.</p>
           <div class="ml-hero-ctas">
             <a class="ml-btn ml-btn-dark" href="#/encrypted-mempool">try the playground</a>
-            <a class="ml-btn" href="#/philosophy">read the whitepaper</a>
-            <a class="ml-btn" href="#/philosophy">partner with us</a>
           </div>
         </div>
       </section>
