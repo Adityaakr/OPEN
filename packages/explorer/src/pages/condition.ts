@@ -124,7 +124,7 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
         renderStage();
         revealEl.innerHTML = revealSection(reveal, condition);
         wireCopy(revealEl);
-        void runVerification(revealEl, reveal, committee, configReady);
+        void runVerification(revealEl, reveal, committee, configReady, condition.tag);
         if (pollTimer !== undefined) clearInterval(pollTimer);
         if (tickTimer !== undefined) clearInterval(tickTimer);
       }
@@ -153,13 +153,14 @@ async function runVerification(
   r: Reveal,
   committee: CommitteeDetail | null,
   configReady: Promise<MempoolConfig | null>,
+  tag: string | null | undefined,
 ): Promise<void> {
   const out = scope.querySelector<HTMLElement>('#verify-panel');
   if (!out) return;
   const cfg = await configReady;
   let report: VerifyReport;
   try {
-    report = await verifyReveal(r, cfg, committee);
+    report = await verifyReveal(r, cfg, committee, tag === 'mempool' ? 'order' : 'seal');
   } catch (e) {
     out.className = 'verify-panel verify-bad';
     out.innerHTML = `<p>could not run the checks (${esc(String(e))}).</p>`;
@@ -168,17 +169,16 @@ async function runVerification(
 
   const failed = report.checks.filter((c) => c.status === 'fail');
   const passed = report.checks.filter((c) => c.status === 'pass');
-  const anchored = passed.some((c) => c.anchor === 'chain');
 
   const summary = failed.length
     ? `<p class="verify-summary verify-bad-text"><strong>${failed.length} of ${report.checks.length} checks failed.</strong>
-       this reveal does not match what was committed on-chain.</p>`
-    : anchored
+       this reveal does not match what was committed.</p>`
+    : report.anchored
       ? `<p class="verify-summary">every check below was recomputed in this browser and held against the
          chain, the ciphertext bytes and the operators' shares. no result here rests on the
          coordinator's word.</p>`
-      : `<p class="verify-summary">${passed.length} of ${report.checks.length} checks passed. this condition was
-         never committed on-chain, so two of them have no independent anchor to test against.</p>`;
+      : `<p class="verify-summary">every check below was recomputed in this browser from the sealed
+         ciphertexts and the operators' shares. no result here rests on the coordinator's word.</p>`;
 
   // Grouped by what backs each claim, strongest evidence first: a reader should
   // be able to see at a glance which results survive a dishonest coordinator.
@@ -255,14 +255,26 @@ function verifyFooter(report: VerifyReport, r: Reveal, cfg: MempoolConfig | null
   const settle = settleUrl
     ? `<a class="link" href="${esc(settleUrl)}" target="_blank" rel="noopener">the settlement transaction</a>`
     : '';
+  // A capsule or a round never goes on-chain, so its honest limits are a
+  // different set from the mempool lane's. Saying "the chain fixes the record"
+  // under a condition that has no chain record would be worse than saying
+  // nothing.
+  const limits = report.anchored
+    ? `<p>the chain fixes which plaintexts were settled and makes them permanent. it does not
+       prove the coordinator was honest while assembling the batch, because
+       <code>executeBatch</code> is coordinator-only: what the chain pins is the record, not
+       the intent. the structural checks above are what constrain the intent, since a
+       coordinator that reordered or suppressed an order could not satisfy them.</p>`
+    : `<p>this condition was not committed on-chain, which is normal: only the mempool lane
+       settles. the shares above still prove a threshold of operators performed the
+       decryption, and the hashes still bind the plaintexts to the ciphertexts they came
+       from. what is missing without a commitment is a public record of the ciphertext set
+       made before the reveal, so a ciphertext dropped before the batch froze would leave no
+       trace here.</p>`;
   return `
     <details class="verify-more">
       <summary>what this does not prove, and how to check it yourself</summary>
-      <p>the chain fixes which plaintexts were settled and makes them permanent. it does not
-      prove the coordinator was honest while assembling the batch, because
-      <code>executeBatch</code> is coordinator-only: what the chain pins is the record, not
-      the intent. the structural checks above are what constrain the intent, since a
-      coordinator that reordered or suppressed an order could not satisfy them.</p>
+      ${limits}
       <p>a ciphertext also carries no proof of which committee it was sealed to. that is a
       property of the scheme rather than this deployment, and no api surface would fix it.</p>
       <p>run it all yourself:
@@ -303,7 +315,7 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
       <div class="card reveal-card">
         <dl class="stats">
           <div><dt>opened</dt><dd>${esc(fmtUnix(r.revealed_at))}</dd></div>
-          <div><dt>sealed orders</dt><dd class="num">${real}<span class="muted"> of ${r.slots.length} slots</span></dd></div>
+          <div><dt>sealed ${c.tag === 'mempool' ? 'orders' : 'seals'}</dt><dd class="num">${real}<span class="muted"> of ${r.slots.length} slots</span></dd></div>
           <div><dt>reveal took</dt><dd class="num">${finalizeMs} ms</dd></div>
           <div><dt>merkle root</dt><dd>
             <button type="button" class="hash-copy mono" data-copy="${esc(r.merkle_root)}"

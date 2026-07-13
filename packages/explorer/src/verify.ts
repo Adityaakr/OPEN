@@ -62,6 +62,10 @@ export interface VerifyReport {
   settleTx: string | null;
   onchainRoot: string | null;
   recomputedRoot: string;
+  /** Did this condition ever go on-chain? False for a capsule or a round, which
+   * never commit or settle, and whose reveal is therefore checked only against
+   * the ciphertexts and the operators' shares. */
+  anchored: boolean;
 }
 
 // ---- raw JSON-RPC (no chain library, no relayer) -------------------------
@@ -169,14 +173,16 @@ function checkOnchainRoot(
   onchainRoot: string | null,
   cfg: MempoolConfig,
 ): Check {
+  // Only reachable when the orders were committed on-chain but the settlement
+  // transaction has not landed yet, so this is a pending state, not an absence.
   if (!onchainRoot || onchainRoot === ZERO32) {
     return {
       id: 'onchain-root',
-      label: 'the chain settled this exact set of plaintexts',
+      label: 'the chain settled these exact plaintexts',
       status: 'skip',
       anchor: 'none',
       detail:
-        'PealMempool.settledRoot is empty for this condition: it was never settled on-chain. the root below is the coordinator\'s claim and nothing independent backs it.',
+        'the orders were committed on-chain, but settlement has not landed yet, so there is no settled root to hold this reveal against. it appears here once the batch is executed.',
     };
   }
   const ok = normalizeHex(onchainRoot) === normalizeHex(recomputed);
@@ -195,7 +201,7 @@ function checkOnchainRoot(
 /** Padding must actually be padding. The merkle leaf covers only (position,
  * payload), NOT the is_dummy flag, so the root alone cannot stop the coordinator
  * from classifying an order as padding. The padding marker in the payload can. */
-function checkPadding(slots: RevealSlot[]): Check {
+function checkPadding(slots: RevealSlot[], noun: string): Check {
   const mislabelled = slots.filter((s) => {
     if (!s.valid) return false;
     const text = new TextDecoder().decode(
@@ -206,20 +212,20 @@ function checkPadding(slots: RevealSlot[]): Check {
   const pad = slots.filter((s) => s.is_dummy).length;
   return {
     id: 'padding',
-    label: 'no order is concealed among the padding slots',
+    label: `no ${noun} is concealed among the padding slots`,
     status: mislabelled.length === 0 ? 'pass' : 'fail',
     anchor: 'local',
     detail:
       mislabelled.length === 0
-        ? `every one of the ${pad} padding slots carries the protocol's padding marker, and no order slot carries it. because the plaintexts are fixed by the root above, this classification cannot be revised after settlement.`
-        : `slot ${mislabelled.map((s) => s.position).join(', ')} is classified inconsistently with its payload: an order is being presented as padding.`,
+        ? `every one of the ${pad} padding slots carries the protocol's padding marker, and no ${noun} slot carries it. because the plaintexts are fixed by the root above, this classification cannot be revised afterwards.`
+        : `slot ${mislabelled.map((s) => s.position).join(', ')} is classified inconsistently with its payload: a ${noun} is being presented as padding.`,
   };
 }
 
 /** Positions are a pure function of the ct hash set: real ciphertexts sorted
  * ascending by hash, padding appended. Nobody gets to pick their slot, so
  * nobody gets to buy priority. */
-function checkOrdering(slots: RevealSlot[]): Check {
+function checkOrdering(slots: RevealSlot[], noun: string): Check {
   const ordered = [...slots].sort((a, b) => a.position - b.position);
   const real = ordered.filter((s) => !s.is_dummy);
   const contiguous = real.every((s, i) => s.position === i);
@@ -234,8 +240,8 @@ function checkOrdering(slots: RevealSlot[]): Check {
     status: ok ? 'pass' : 'fail',
     anchor: 'local',
     detail: ok
-      ? `the ${real.length} sealed order${one ? '' : 's'} occup${one ? 'ies the leading slot' : 'y the leading slots'} in ascending hash order, with padding filling the tail. a position is a function of the ciphertext's hash, which nobody can steer without discarding the ciphertext, so priority cannot be bought.`
-      : 'the order slots are not in ascending hash order, so the ordering was chosen rather than derived.',
+      ? `the ${real.length} ${noun}${one ? '' : 's'} occup${one ? 'ies the leading slot' : 'y the leading slots'} in ascending hash order, with padding filling the tail. a position is a function of the ciphertext's hash, which nobody can steer without discarding the ciphertext, so no participant chooses their own slot.`
+      : `the ${noun} slots are not in ascending hash order, so the ordering was chosen rather than derived.`,
   };
 }
 
@@ -336,6 +342,10 @@ export async function verifyReveal(
   r: Reveal,
   cfg: MempoolConfig | null,
   committee: CommitteeDetail | null,
+  /** What one sealed item is called on this lane: a swap is an "order", a time
+   * capsule is a "seal". Talking about orders and priority under a capsule reads
+   * as copy pasted from somewhere else. */
+  noun = 'seal',
 ): Promise<VerifyReport> {
   const recomputedRoot = await recomputeMerkleRoot(r.slots);
 
@@ -359,21 +369,31 @@ export async function verifyReveal(
 
   const checks: Check[] = [];
 
+  // Whether this condition ever went on-chain at all. Only the mempool lane
+  // commits and settles; a capsule or a round never does, and for those the two
+  // chain checks are not applicable rather than unsatisfied. Listing them as
+  // skipped would make an ordinary condition look deficient, so they are simply
+  // not offered. That is a different thing from being UNABLE to reach the chain,
+  // which stays visible below: a check that should have run and did not is
+  // exactly what must never be quietly dropped.
+  const settled = !!onchainRoot && onchainRoot !== ZERO32;
+  const anchored = settled || commits.size > 0;
+
   if (chainError) {
-    const detail = `could not read the chain (${chainError}), so the on-chain anchors could not be checked. nothing below is being taken on the coordinator's word instead.`;
+    const detail = `could not reach the chain (${chainError}), so the on-chain anchors could not be read. no coordinator claim is being substituted for them.`;
     checks.push(
-      { id: 'onchain-root', label: 'the chain settled this exact set of plaintexts', status: 'skip', anchor: 'none', detail },
-      { id: 'sealed-onchain', label: 'each sealed order was committed on-chain before the reveal', status: 'skip', anchor: 'none', detail },
+      { id: 'onchain-root', label: 'the chain settled these exact plaintexts', status: 'skip', anchor: 'none', detail },
+      { id: 'sealed-onchain', label: 'every order was committed on-chain before it was opened', status: 'skip', anchor: 'none', detail },
     );
-  } else {
+  } else if (anchored) {
     checks.push(checkOnchainRoot(recomputedRoot, onchainRoot, cfg!));
     checks.push(checkSealedOnChain(r.slots, cfg!, commits));
   }
 
   checks.push(await checkCtHashes(r.slots));
   checks.push(await checkShares(r, committee));
-  checks.push(checkPadding(r.slots));
-  checks.push(checkOrdering(r.slots));
+  checks.push(checkPadding(r.slots, noun));
+  checks.push(checkOrdering(r.slots, noun));
 
-  return { checks, sealedCommits: commits, settleTx, onchainRoot, recomputedRoot };
+  return { checks, sealedCommits: commits, settleTx, onchainRoot, recomputedRoot, anchored };
 }
