@@ -38,6 +38,9 @@ export interface Batch {
   /** Live share progress (present on /v0/conditions/:id). */
   verified_shares?: number;
   total_shares?: number;
+  /** Packed B*48 ciphertext headers (present on /v0/reveals/:id). The other half
+   * of the share check: verify_share needs the headers the share was made over. */
+  headers_b64?: string;
 }
 
 export const API_BASE = BASE;
@@ -54,6 +57,9 @@ export interface RevealSlot {
   is_dummy: boolean;
   valid: boolean;
   payload_b64: string;
+  /** The sealed ciphertext this slot opened. Present after reveal so the ct hash
+   * can be re-derived in the browser instead of taken on the coordinator's word. */
+  sealed_b64?: string;
 }
 
 export interface ShareEntry {
@@ -61,6 +67,8 @@ export interface ShareEntry {
   operator_id: number;
   verified: boolean;
   submitted_at_ms: number;
+  /** The operator's share bytes, so the pairing check can be rerun client-side. */
+  share_b64?: string;
 }
 
 export interface Reveal {

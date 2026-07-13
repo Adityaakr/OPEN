@@ -10,6 +10,7 @@ use bte_crypto::wire::header_to_bytes;
 use bte_crypto::{verify_share, SealedCiphertext, Share};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 use crate::db::{now_ms, unix_now};
 use crate::state::{new_id, App};
@@ -529,6 +530,14 @@ async fn submit_share(
 
 /// 404 until the condition is revealed (invariant 4: no plaintext before
 /// reveal). After: plaintexts + per-operator share log + timings.
+///
+/// Everything a third party needs to re-derive our claims ships with the
+/// reveal, because a "verification" that reads its expected value from us
+/// proves only that we are self-consistent. So each slot carries the sealed
+/// ciphertext it opened (`sealed_b64` -> re-hash it, that is the ct_hash), each
+/// batch carries its packed headers, and each share carries its bytes (feed
+/// both to verify_share and the t-of-n pairing check runs in the browser).
+/// None of this is secret once the condition is revealed.
 async fn get_reveal(
     State(app): State<App>,
     Path(condition_id): Path<String>,
@@ -542,10 +551,32 @@ async fn get_reveal(
         )
         .map_err(|_| not_found("not revealed"))?;
 
-    let slots: Value = serde_json::from_str(&payloads_json).map_err(internal)?;
+    // Attach the sealed ciphertext to the slot it opened, keyed by ct_hash. The
+    // reveal's payloads_blob was frozen at reveal time and has no bytes in it.
+    let mut stmt = conn
+        .prepare("SELECT ct_hash, sealed_blob FROM ciphertexts WHERE condition_id = ?1")
+        .map_err(internal)?;
+    let sealed: HashMap<String, Vec<u8>> = stmt
+        .query_map([&condition_id], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, Vec<u8>>(1)?))
+        })
+        .map_err(internal)?
+        .collect::<Result<_, _>>()
+        .map_err(internal)?;
+
+    let mut slots: Value = serde_json::from_str(&payloads_json).map_err(internal)?;
+    if let Some(arr) = slots.as_array_mut() {
+        for slot in arr.iter_mut() {
+            let hash = slot.get("ct_hash").and_then(Value::as_str).unwrap_or("");
+            if let (Some(blob), Some(obj)) = (sealed.get(hash), slot.as_object_mut()) {
+                obj.insert("sealed_b64".into(), json!(B64.encode(blob)));
+            }
+        }
+    }
+
     let mut stmt = conn
         .prepare(
-            "SELECT s.batch_id, s.operator_id, s.verified, s.submitted_at
+            "SELECT s.batch_id, s.operator_id, s.verified, s.submitted_at, s.share_blob
              FROM shares s JOIN batches b ON b.id = s.batch_id
              WHERE b.condition_id = ?1 ORDER BY s.submitted_at ASC",
         )
@@ -557,6 +588,7 @@ async fn get_reveal(
                 "operator_id": r.get::<_, i64>(1)?,
                 "verified": r.get::<_, i64>(2)? != 0,
                 "submitted_at_ms": r.get::<_, i64>(3)?,
+                "share_b64": B64.encode(r.get::<_, Vec<u8>>(4)?),
             }))
         })
         .map_err(internal)?
@@ -568,18 +600,36 @@ async fn get_reveal(
              WHERE condition_id = ?1 ORDER BY batch_index",
         )
         .map_err(internal)?;
-    let batches: Vec<Value> = stmt
+    let batch_rows: Vec<(i64, i64, Option<i64>, Option<i64>)> = stmt
         .query_map([&condition_id], |r| {
-            Ok(json!({
-                "batch_id": r.get::<_, i64>(0)?,
-                "batch_index": r.get::<_, i64>(1)?,
-                "predecrypt_ms": r.get::<_, Option<i64>>(2)?,
-                "finalize_ms": r.get::<_, Option<i64>>(3)?,
-            }))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
         })
         .map_err(internal)?
         .collect::<Result<_, _>>()
         .map_err(internal)?;
+
+    // The packed B*48 headers per batch, the other half of the share check.
+    // /v0/work serves these too, but only for batches still open, so a revealed
+    // condition's headers are unreachable there.
+    let b: i64 = conn
+        .query_row(
+            "SELECT k.b FROM committees k JOIN conditions c ON c.committee_id = k.id
+             WHERE c.id = ?1",
+            [&condition_id],
+            |r| r.get(0),
+        )
+        .map_err(internal)?;
+    let mut batches = Vec::with_capacity(batch_rows.len());
+    for (batch_id, batch_index, predecrypt_ms, finalize_ms) in batch_rows {
+        let headers = batch_headers(&conn, &condition_id, batch_index, b)?;
+        batches.push(json!({
+            "batch_id": batch_id,
+            "batch_index": batch_index,
+            "predecrypt_ms": predecrypt_ms,
+            "finalize_ms": finalize_ms,
+            "headers_b64": B64.encode(&headers),
+        }));
+    }
 
     Ok(Json(json!({
         "condition_id": condition_id,
@@ -589,6 +639,35 @@ async fn get_reveal(
         "shares": share_log,
         "batches": batches,
     })))
+}
+
+/// The batch's ciphertext headers, packed in position order (B * 48 bytes).
+fn batch_headers(
+    conn: &rusqlite::Connection,
+    condition_id: &str,
+    batch_index: i64,
+    b: i64,
+) -> Result<Vec<u8>, ApiError> {
+    let lo = batch_index * b;
+    let hi = lo + b;
+    let mut stmt = conn
+        .prepare(
+            "SELECT sealed_blob FROM ciphertexts
+             WHERE condition_id = ?1 AND position >= ?2 AND position < ?3
+             ORDER BY position ASC",
+        )
+        .map_err(internal)?;
+    let blobs: Vec<Vec<u8>> = stmt
+        .query_map(rusqlite::params![condition_id, lo, hi], |r| r.get(0))
+        .map_err(internal)?
+        .collect::<Result<_, _>>()
+        .map_err(internal)?;
+    let mut headers = Vec::with_capacity(blobs.len() * 48);
+    for blob in &blobs {
+        let ct = SealedCiphertext::from_bytes(blob).map_err(internal)?;
+        headers.extend_from_slice(&header_to_bytes(&ct.header()));
+    }
+    Ok(headers)
 }
 
 fn default_committee(app: &App) -> Option<String> {

@@ -1,4 +1,5 @@
 # bte — project model
+<!-- updated 2026-07-14 by prism-understand (verification story: the reveal check was circular) -->
 <!-- updated 2026-07-12 (timing trust hole; Railway volume fix; landing prompt handoff) -->
 <!-- updated 2026-07-09 by prism-understand (OG/social-card feasibility for shared links) -->
 <!-- updated 2026-07-07 by prism-understand (share-link recipient flow + engagement audit) -->
@@ -32,6 +33,63 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
 - `/v0/reveals/:id` must 404 before reveal (invariant 4 test greps the db
   for plaintext bytes).
 - Rejected shares are stored flagged and NEVER count toward t.
+
+## Verification model (mapped 2026-07-14 — read this before touching any "verify" UI)
+What is REAL vs what only looks real. The distinction is the whole point of the product.
+
+- **The chain is reachable from the browser.** `rpc.moderato.tempo.xyz` answers with
+  `access-control-allow-origin: *` (tested live). No relayer, no coordinator, no chain
+  lib needed: `packages/sdk/src/anchor.ts:127` already does a raw `eth_call` over
+  `fetch`. This is the only non-circular source the page has.
+- **On-chain anchors that exist today:**
+  - `PealMempool.settledRoot(bytes32)` public mapping (`contracts/src/PealMempool.sol:31`)
+    — `eth_call`-readable. `executeBatch` recomputes the tree on-chain with the sha256
+    precompile and reverts on `RootMismatch` (`PealMempool.sol:71-72`).
+  - `Sealed(conditionId, ctHash, from)` — **all three args indexed**
+    (`PealMempool.sol:42`), so `eth_getLogs` yields the ct_hash set committed BEFORE
+    reveal, block-timestamped. `commitSealed` writes no storage (`PealMempool.sol:58-60`);
+    the log is the only record.
+  - `BatchExecuted(conditionId, merkleRoot, realCount)` (`PealMempool.sol:43`).
+- **`BteAnchor.sol` is NOT deployed.** `contracts/script/` has only `DeployMempool.s.sol`,
+  and `deployments/42431.json` carries no anchor address. The SDK's `verifyAnchor`
+  (`anchor.ts:116`) therefore targets a phantom contract — same mapping shape as
+  `settledRoot`, so it works once the selector is repointed.
+- **The trap that was shipped:** `condition.ts:151-152` compared the locally recomputed
+  root against `r.merkle_root` — a field from the SAME `/v0/reveals/:id` JSON as the
+  plaintexts it recomputed from. Self-consistency, not integrity. Any "verify" that
+  reads its expected value from the coordinator is theatre. **Anchor every comparison to
+  a value the coordinator cannot retcon.**
+- **Free local checks nobody was doing:** dummy payloads carry a literal
+  `b"BTE_DUMMY_V0:"` prefix (`bte-crypto/src/lib.rs:450`), so post-reveal
+  `is_dummy == payload.startsWith(prefix)` is checkable from public data; likewise
+  positions are deterministic (reals ascending by ct_hash, dummies a sorted tail —
+  `engine.rs:133-146`).
+
+### Known holes (do not let the UI claim otherwise)
+- **`isReal` is not in the merkle leaf.** The leaf is `sha256(le32(pos) || payload)`
+  (`merkle.rs:9-14`, `PealMempool.sol:98`). `executeBatch` skips `!isReal` slots
+  (`PealMempool.sol:77,83`) AFTER the root check passes, so flipping a real order to
+  dummy preserves the root and silently censors it. Client-side the dummy-prefix check
+  catches it; the contract fix is ~3 lines + a redeploy.
+- **`executeBatch` is coordinator-only** (`PealMempool.sol:67`). The chain proves
+  immutability and ordering, NOT coordinator honesty. Say exactly that in the copy.
+- **Nothing binds a ciphertext to a committee.** `ct0 = [k]_1` is independent of `ek`
+  (`bte-crypto/src/lib.rs:169-174`). Not fixable via API surface; it is the scheme.
+  `params_digest` from `/v0/committees/:id` is circular AND bugged (`api.rs:674` returns
+  column 0, i.e. the id).
+- **Share bytes are never served.** `get_reveal` selects only booleans + timestamps
+  (`api.rs:548`); `share_blob` is written (`api.rs:513`) and never read out, and
+  `/v0/work` filters `finalized_at IS NULL` (`api.rs:381`) so a revealed condition's
+  headers are unreachable. So wasm `verifyShare` (`sdk/src/verify.ts:24`) — the only
+  cryptographic t-of-n proof available — is IMPOSSIBLE from the browser until the
+  coordinator serves `share_b64` + `headers_b64`.
+- **`ct_hash` is coordinator-asserted.** `sdk/src/index.ts:200-207` anchors whatever
+  hash the coordinator echoes back; the browser never re-derives it, even though
+  `bte-wasm` exports `ct_hash(sealed)->hex` (`crates/bte-wasm/src/lib.rs:53-58`), the
+  SDK loads it (`wasm.ts:33`), and the browser still holds `sealedB64`. Zero call sites.
+- **Most dashboard conditions have NO chain anchor.** `tag == 'mempool'` is set only at
+  `mempool.ts:417`; capsule/round conditions (`playground.ts:469-501`) are never
+  committed on-chain. `settledRoot` returns `0x0` for them — never render that as a pass.
 
 ## Gotchas (hard-won)
 - ark-std 0.6 re-exports rand 0.8; simple-bte also deps rand 0.9 (unused by
@@ -586,6 +644,32 @@ capsule anatomy + committee ring, integration snippet, honest-limits, roadmap
 (the live demo). Design tokens already matched explorer CSS; added the missing
 warm/code/accent-strong vars. Nav "encrypted mempool" now -> #/mempool. All
 landing styles are .ml-* in style.css; sections use the existing scroll-reveal.
+
+### In-browser reveal verification (2026-07-13)
+Condition dashboard (#/condition/:id, pages/condition.ts) now has a "recompute
+it here" button: packages/explorer/src/merkle.ts rebuilds the merkle root in the
+browser from all 64 revealed plaintexts (leaf=sha256(pos_le_u32||payload),
+parent=sha256(l||r), odd promoted; mirrors coordinator merkle.rs) and compares
+to the published root, showing verified/mismatch. Validated: browser recompute
+== live coordinator root for cond_cea56d21 (9dcb6315..7918). The sealed ct hash
+(sha256(ciphertext)) is the pre-reveal on-chain commitment and is NOT
+recomputable from a plaintext, so the client check is on the merkle root.
+
+### Docs
+Long-form explainer at docs/encrypted-mempool-explained.html (self-contained
+HTML, Mermaid architecture diagram, brand tokens). Covers the problem, the
+architecture, the 8-step BTE flow, why batched (48-byte O(n) shares), the
+in-browser verification, live data (chain 42431, current 42431.json addresses,
+committee 5/3/B=64, ~90ms reveal, 5s cue, CoinGecko pricing, $100k cap), and the
+honest v0 limits. Written by /prism-write, grounded in real files.
+
+### Live-price pooling + swap cap (2026-07-13)
+relayer /prepare sets the ETH reserve from live CoinGecko ETH/USD (60s cache,
+fallback 2500), USDC depth constant (900k) so sandwich behaviour is price-stable;
+pools primed on boot. Explorer derives price from reserves so rate/USD/cap track
+real prices with no explorer change. mempool.ts caps a swap at $100k of value
+(USDC 1:1, ETH via price): over-cap disables the button ("max $100,000 per swap").
+Cue shortened to 5s.
 
 ### Tempo-under-load learnings (robustness)
 Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything

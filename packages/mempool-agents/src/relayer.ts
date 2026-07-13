@@ -73,6 +73,10 @@ async function config() {
   return {
     chainId: d.chainId,
     explorerBase: d.explorerBase,
+    // The browser reads the chain itself to verify a reveal (the RPC allows
+    // cross-origin reads), so it needs the endpoint, not just our summary of
+    // what we found there. A check that trusts this relayer proves nothing.
+    rpcUrl: d.rpcUrl,
     relayer,
     usdc: d.usdc,
     eth: d.eth,

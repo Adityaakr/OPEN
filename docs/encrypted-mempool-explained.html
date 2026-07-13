@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Peal encrypted mempool, end to end</title>
+<style>
+  :root {
+    --bg1:#dcebfa; --bg2:#eaf3fc; --bg3:#f6f9fd;
+    --text:#111827; --muted:#6b7280; --border:#e5e7eb;
+    --accent:#2563eb; --accent-weak:#eff6ff; --accent-border:#bfdbfe;
+    --green:#16a34a; --green-weak:#f0fdf4; --red:#dc2626; --red-weak:#fef2f2;
+    --card:#ffffff; --shadow:0 1px 2px rgb(0 0 0 / 0.05);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html { background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 45%,var(--bg3) 100%); background-attachment:fixed; }
+  body { margin:0; font-family:var(--sans); color:var(--text); line-height:1.65; font-size:16px; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:820px; margin:0 auto; padding:56px 24px 96px; }
+  header.masthead { margin-bottom:44px; }
+  .kicker { font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; }
+  h1 { font-weight:700; font-size:clamp(30px,5vw,44px); line-height:1.12; letter-spacing:-0.01em; margin:0 0 18px; }
+  h2 { font-weight:700; font-size:24px; letter-spacing:-0.01em; margin:52px 0 14px; padding-top:20px; border-top:1px solid var(--border); }
+  h3 { font-weight:600; font-size:17px; margin:28px 0 8px; }
+  p { margin:0 0 16px; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .lede { font-size:19px; color:#1f2937; }
+  code, .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  code { font-size:0.88em; background:var(--accent-weak); border:1px solid var(--accent-border); border-radius:5px; padding:1px 5px; color:#1e3a8a; }
+  pre { background:#2b2825; color:#e8e3da; border-radius:12px; padding:18px 20px; overflow-x:auto; font-size:13px; line-height:1.7; }
+  pre code { background:none; border:none; color:inherit; padding:0; }
+  figure { margin:24px 0; }
+  figcaption { font-size:13px; color:var(--muted); margin-top:10px; text-align:center; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:22px 24px; box-shadow:var(--shadow); margin:22px 0; }
+  table { width:100%; border-collapse:collapse; margin:20px 0; font-size:14px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--accent); }
+  td.mono, th.mono { font-family:var(--mono); }
+  .step { display:flex; gap:16px; align-items:flex-start; margin:18px 0; }
+  .step .n { flex:none; width:30px; height:30px; border-radius:999px; display:grid; place-items:center; font-family:var(--mono); font-size:13px; font-weight:700; color:var(--accent); background:var(--accent-weak); border:1px solid var(--accent-border); }
+  .step .b { margin-top:2px; }
+  .step .b h3 { margin:0 0 4px; }
+  .step .b p { margin:0; color:#374151; font-size:15px; }
+  .note-ok { border-left:3px solid var(--green); background:var(--green-weak); }
+  .pill { display:inline-block; font-size:12px; font-weight:600; padding:2px 10px; border-radius:999px; background:var(--accent-weak); color:var(--accent); border:1px solid var(--accent-border); }
+  ul.tight li { margin:6px 0; }
+  .mermaid { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; box-shadow:var(--shadow); text-align:center; }
+  .foot { margin-top:64px; padding-top:20px; border-top:1px solid var(--border); font-size:13px; color:var(--muted); }
+  .datagrid { display:grid; grid-template-columns:auto 1fr; gap:8px 18px; font-size:14px; }
+  .datagrid dt { color:var(--muted); }
+  .datagrid dd { margin:0; font-family:var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Peal Network · encrypted mempool</p>
+  <h1>An encrypted mempool that opens itself, end to end</h1>
+  <p class="lede">A public mempool leaks your trade before it executes, so a searcher reads it and sandwiches you. Peal seals every order to a committee, orders the ciphertexts blind, and opens the whole batch at once on a cue. This is how the live demo works, with the real numbers from the running stack on Tempo testnet.</p>
+</header>
+
+<section>
+  <h2>The problem: a readable mempool is a free option for searchers</h2>
+  <p>On a normal chain your swap waits in the public mempool in plain sight. Anyone watching, including automated searchers, can read the amount, the direction, and the price you are willing to accept, all before it executes. That visibility is the whole attack:</p>
+  <div class="step"><span class="n">1</span><div class="b"><h3>your order is public</h3><p>the searcher sees your swap and your slippage floor.</p></div></div>
+  <div class="step"><span class="n">2</span><div class="b"><h3>the searcher front-runs</h3><p>it buys just ahead of you, pushing the pool price against you.</p></div></div>
+  <div class="step"><span class="n">3</span><div class="b"><h3>you fill worse, it sells back</h3><p>your swap executes at the worse price, the searcher sells into it, and the difference (sized to your own slippage limit) is its profit.</p></div></div>
+  <p>The searcher's edge is not compute, it is <em>information</em>. Peal removes the information. The order travels sealed, builders order ciphertexts they cannot read, and by the time anything is readable the ordering is already fixed. The searcher's problem is not made harder, it is made empty.</p>
+</section>
+
+<section>
+  <h2>The architecture</h2>
+  <p>The demo runs a full pipeline. The seal-and-reveal core is the Peal network (a coordinator, a committee of operator nodes, and a browser SDK). Around it sit the pieces that make the mempool comparison real on-chain: two AMM pools, a public-builder contract, a Peal-mempool contract, and three off-chain agents.</p>
+
+  <figure>
+    <div class="mermaid">
+flowchart TB
+  subgraph browser["browser (explorer SPA)"]
+    U["user swap<br/>10k USDC to ETH"]
+    SDK["bte-sdk<br/>seal in wasm"]
+  end
+  subgraph peal["Peal network"]
+    C["coordinator<br/>axum /v0 + sqlite<br/>tick 500ms"]
+    OPS["committee<br/>5 operators, any 3 open"]
+  end
+  subgraph agents["off-chain agents (Node)"]
+    R["relayer<br/>sponsored gateway"]
+    S["searcher<br/>real sandwich bot"]
+    T["settler<br/>watches reveals"]
+  end
+  subgraph chain["Tempo testnet (chain 42431)"]
+    PB["PublicBuilder<br/>+ public SwapPool"]
+    PM["PealMempool<br/>+ peal SwapPool"]
+  end
+  U --> SDK -->|"sealed capsule"| C
+  C --> OPS
+  OPS -->|"48-byte shares"| C
+  U -->|"public order (cleartext)"| R --> PB
+  S -->|"front-run / back-run"| PB
+  SDK -->|"commitSealed(hash)"| R --> PM
+  C -->|"revealed batch"| T -->|"executeBatch"| PM
+    </div>
+    <figcaption>The only difference between the two lanes is encryption. The searcher is the block builder on both, the worst case an unprotected mempool faces.</figcaption>
+  </figure>
+
+  <p>The contracts model the two worlds with the same adversary:</p>
+  <ul class="tight">
+    <li><code>SwapPool</code>: a constant-product pool (<code>x*y=k</code>, 0.3% fee) whose <code>swap</code> is gated to one operator, the builder allowed to move it. Deployed twice, one per lane.</li>
+    <li><code>PublicBuilder</code>: models an unprotected mempool. <code>submitOrder</code> defers execution and emits the order in cleartext, so the searcher sees amount, direction, and floor. <code>buildBlock([frontRun, victim, backRun])</code> lets it execute its chosen ordering, a real sandwich with real extraction.</li>
+    <li><code>PealMempool</code>: <code>commitSealed(conditionId, ctHash)</code> emits only the hash, so the searcher has nothing to wrap. <code>executeBatch(conditionId, orders, merkleRoot)</code> is coordinator-only, recomputes the merkle root over the revealed order payloads using the sha256 precompile, and swaps in committed order only if the root matches.</li>
+  </ul>
+  <p>Settlement runs as a small TypeScript service (the settler) that watches the coordinator's reveal API, rather than inside the Rust coordinator. That keeps the shipped devnet untouched and all chain logic in one place.</p>
+</section>
+
+<section>
+  <h2>How batched threshold encryption does the work, step by step</h2>
+  <p>Peal is built on batched threshold encryption (the commonware simple-bte construction, FO variant). The one-sentence version: encrypt each transaction to a committee key, and when a cue fires the operators each return one tiny value that together open the entire batch at once. Here is the full path an order takes.</p>
+
+  <div class="step"><span class="n">01</span><div class="b"><h3>seal, on the user's device</h3><p>The browser SDK encrypts the order in wasm to the committee's public key. The output is a capsule: a 48-byte KEM header (one group element) plus an opaque payload. The amount, direction, and token never leave the device in the clear. The capsule's <code>ctHash = sha256(ciphertext)</code> is its fingerprint.</p></div></div>
+
+  <div class="step"><span class="n">02</span><div class="b"><h3>attach a cue</h3><p>The order is sealed to a condition: for the mempool demo, a time cue five seconds out. The condition is what decides <em>when</em> the batch may open. Nothing opens before it fires.</p></div></div>
+
+  <div class="step"><span class="n">03</span><div class="b"><h3>commit the hash on-chain</h3><p>The relayer calls <code>commitSealed(conditionId, ctHash)</code>. Only the hash goes on-chain, so the position is anchored before anyone can read the order. There is nothing for a searcher to front-run.</p></div></div>
+
+  <div class="step"><span class="n">04</span><div class="b"><h3>freeze and pad to a fixed batch</h3><p>At the cue the coordinator freezes the batch to exactly 64 slots. Real ciphertexts sort by <code>ctHash</code>; dummy padding fills the tail. Positions are a pure function of the real set, so no observer can tell how many real orders are inside or which slot is yours.</p></div></div>
+
+  <div class="step"><span class="n">05</span><div class="b"><h3>pre-decrypt, pipelined</h3><p>The heavy per-batch cryptography (cross terms) is precomputed at freeze while shares are still in flight, so it never sits on the user-visible path. The coordinator ticks every 500ms.</p></div></div>
+
+  <div class="step"><span class="n">06</span><div class="b"><h3>operators return shares</h3><p>Each operator returns exactly one 48-byte share for the whole batch, not one per transaction. Every share is checked with a public pairing equation before it counts. Any three of the five are enough; a rejected share never counts toward the threshold.</p></div></div>
+
+  <div class="step"><span class="n">07</span><div class="b"><h3>combine and reveal</h3><p>Three valid shares combine and the entire batch decrypts together. In a live run this finalize step took <strong>90 ms</strong>. The coordinator publishes the plaintexts and a merkle root over <code>(position, payload)</code> for every slot, padding included.</p></div></div>
+
+  <div class="step"><span class="n">08</span><div class="b"><h3>settle in fixed order</h3><p>The settler reads the revealed batch and calls <code>executeBatch</code>. The contract re-derives the merkle root on-chain and rejects anything that is not the revealed batch, then swaps in committed order. The ordering was fixed at step 3, so there was never a window to front-run.</p></div></div>
+</section>
+
+<section>
+  <h2>Why <em>batched</em>, and why 48 bytes matters</h2>
+  <p>Threshold-encrypted mempools are not new. The design choice that makes Peal practical is batching the reveal.</p>
+  <table>
+    <thead><tr><th></th><th>per-transaction</th><th>per-epoch</th><th>batched (Peal)</th></tr></thead>
+    <tbody>
+      <tr><td>committee traffic</td><td>one share per tx, O(n·B)</td><td>one key per epoch</td><td>one 48-byte value per operator, O(n)</td></tr>
+      <tr><td>unincluded txs</td><td>stay private</td><td>exposed at epoch key drop</td><td>stay private</td></tr>
+      <tr><td>slot / epoch binding</td><td>none</td><td>required</td><td>none</td></tr>
+    </tbody>
+  </table>
+  <p>The whole batch of 64 opens on one 48-byte value per operator. Committee traffic is O(n) in the number of operators, not O(n·B) in operators times batch size. The KEM header and the operator shares are both exactly 48 bytes, enforced and tested. That fixed, tiny footprint is what keeps the committee cheap and the reveal fast.</p>
+</section>
+
+<section>
+  <h2>You do not have to trust the reveal: verify it yourself</h2>
+  <p>Every condition has a dashboard at <code>#/condition/&lt;id&gt;</code> showing the sealed hash of each slot before the reveal and the plaintext after, the merkle root, and the per-operator pairing checks. The reveal is designed to be checkable without trusting the coordinator.</p>
+  <div class="card note-ok">
+    <p style="margin:0"><span class="pill" style="background:var(--green-weak);color:var(--green);border-color:#bbf7d0">verified</span> &nbsp;The dashboard has a <strong>recompute it here</strong> button. It rebuilds the merkle root in your browser from all 64 revealed plaintexts, using the exact rule the coordinator uses:</p>
+  </div>
+  <pre><code>leaf   = sha256(position_le_u32 || payload)
+parent = sha256(left || right)     // an odd node is promoted unchanged
+root   = fold the leaves in position order</code></pre>
+  <p>If the recomputed root equals the published one, every revealed plaintext is committed and the reveal was not tampered with. This was checked against a live reveal: the browser recompute matched the coordinator's published root <code>9dcb6315…7918</code> exactly. The batch json is downloadable too, so you can run the same check offline.</p>
+  <p>The two hashes on the dashboard play different roles. The <strong>sealed ct hash</strong> (before) is <code>sha256(ciphertext)</code>, the commitment published on-chain <em>before</em> the batch opens, which is what proves the order was fixed ahead of the cue. The <strong>merkle root</strong> (after) commits to the revealed plaintexts. The ct hash cannot be recomputed from a plaintext alone (encryption is randomized), so the client-side check is on the merkle root, which is the part that proves the reveal is faithful.</p>
+</section>
+
+<section>
+  <h2>The practical data</h2>
+  <p>Everything below is from the running stack, not a simulation. Both pools are real contracts, the searcher is a real bot with its own key submitting real front-run and back-run transactions, and the sealed order settles through <code>PealMempool.executeBatch</code>.</p>
+
+  <h3>Network and committee</h3>
+  <div class="card"><dl class="datagrid">
+    <dt>chain</dt><dd>Tempo Moderato, id 42431</dd>
+    <dt>rpc</dt><dd>rpc.moderato.tempo.xyz</dd>
+    <dt>explorer</dt><dd>explore.testnet.tempo.xyz</dd>
+    <dt>committee</dt><dd>5 operators, threshold 3</dd>
+    <dt>batch size</dt><dd>64 slots (1 real + 63 padding)</dd>
+    <dt>share / header</dt><dd>48 bytes each</dd>
+    <dt>reveal (finalize)</dt><dd>~90 ms</dd>
+    <dt>cue</dt><dd>5 s (seal to settle ~9 to 10 s end to end)</dd>
+  </dl></div>
+
+  <h3>Live contracts (deployments/42431.json)</h3>
+  <table>
+    <thead><tr><th>contract</th><th class="mono">address</th></tr></thead>
+    <tbody>
+      <tr><td>USDC (demo)</td><td class="mono">0x0988ed39abd852d02a3951f0ae9f9995027145c2</td></tr>
+      <tr><td>ETH (demo)</td><td class="mono">0x3af0d1e453ff165da377a17acc5a2da421a67f4f</td></tr>
+      <tr><td>public SwapPool</td><td class="mono">0x74b6b51f25fdfaab28f7813b3fb93dacdf75bdd3</td></tr>
+      <tr><td>PublicBuilder</td><td class="mono">0xe3a704f4b2d3d9010ad6e83bc4a9a0829d107af5</td></tr>
+      <tr><td>peal SwapPool</td><td class="mono">0x0a6ec3fb845c6de4fd7c0379581947844c655445</td></tr>
+      <tr><td>PealMempool</td><td class="mono">0x387b9b50950ded996776a96f20af9d2106c96bf9</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The comparison, one run</h3>
+  <p>A representative run recorded earlier in the build: a $50k swap on the public lane was pushed to its exact 0.5% slippage floor and the searcher took $212.99 on-chain, while the same swap sealed through Peal settled at the full quote with the searcher taking $0. The demo shows both lanes side by side with clickable transaction links, and reports one figure for the loss so the number you see taken from the public lane is the same number the peal lane protects.</p>
+
+  <h3>Realistic pricing and a safety cap</h3>
+  <p>Before each swap the relayer resets both pools to identical reserves, so the only difference between the lanes is the sandwich, never independent drift. The ETH reserve is set from the live CoinGecko ETH/USD price (cached 60 s, with a fallback), while the USDC-side depth stays constant, so the rate and the dollar values on the page track the real market and the sandwich behaviour stays the same at any price. The demo caps a single swap at $100k of value (USDC one to one, ETH via the live price) so no outsized trade can drain the reset pools.</p>
+</section>
+
+<section>
+  <h2>Hard decisions and trade-offs</h2>
+  <ul class="tight">
+    <li><strong>Same adversary on both lanes.</strong> The searcher is the block builder in both worlds. Anything less would be a strawman: the point is that encryption alone closes the gap, with the builder held constant.</li>
+    <li><strong>Settlement in TypeScript, not in the coordinator.</strong> Keeping the settler as a separate viem service means the audited devnet coordinator never changed, so the mempool work carries low regression risk.</li>
+    <li><strong>Deterministic order encoding, not JSON.</strong> The sealed payload is a fixed byte layout the contract can decode, so the on-chain leaf recomputation matches the reveal byte for byte.</li>
+    <li><strong>Latency is not crypto.</strong> Pre-decrypt is pipelined at freeze and combine plus finalize is about 35 ms at batch 64. The old 30-second wait was round length and poll intervals, which is why the cue is now 5 seconds.</li>
+    <li><strong>Pools reset per swap.</strong> That makes pool depth a free dial for tuning how small a trade gets sandwiched, and it guarantees a fair, drift-free comparison every time.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What is next</h2>
+  <ul class="tight">
+    <li>Decentralize the committee: a dealerless setup (distributed key generation / powers of tau) so no single party holds the keying material.</li>
+    <li>Operators that verify the cue themselves, and a coordinator-to-client reveal push (SSE) to shave the last poll intervals.</li>
+    <li>Chain-level integration: the same engine behind a sequencer or RPC, rather than an app-level lane.</li>
+  </ul>
+</section>
+
+<footer class="foot">
+  <p>Peal is the product; bte is the plumbing (bte-* crates, bte-sdk on npm, the /v0 API). Every number here is from the running stack on Tempo testnet and the code in this repo, not a projection. Live demo: the playground at <code>#/encrypted-mempool</code>, the verifiable dashboard at <code>#/condition/&lt;id&gt;</code>.</p>
+</footer>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad:true,
+    theme:'base',
+    themeVariables:{
+      primaryColor:'#eff6ff', primaryBorderColor:'#bfdbfe', primaryTextColor:'#111827',
+      lineColor:'#6b7280', fontFamily:'Inter, system-ui, sans-serif', fontSize:'13px',
+      clusterBkg:'#f6f9fd', clusterBorder:'#e5e7eb'
+    }
+  });
+</script>
+</body>
+</html>

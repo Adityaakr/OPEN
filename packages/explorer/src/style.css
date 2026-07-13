@@ -533,17 +533,117 @@ a.btn {
   color: var(--muted);
   margin: 16px 0 0;
 }
-.verify-result {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 8px 0 0;
-  padding: 8px 12px;
-  border-radius: 8px;
+/* ---------- the verification panel ---------- */
+.verify-panel {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface, #f9fafb);
 }
-.verify-result.verify-ok { border-color: #bbf7d0; background: var(--green-weak, #f0fdf4); color: var(--text); }
-.verify-result.verify-bad { border-color: var(--red-border, #fecaca); background: var(--red-weak, #fef2f2); color: var(--red-text, #991b1b); }
+.verify-panel.verify-bad { border-color: var(--red-border, #fecaca); background: var(--red-weak, #fef2f2); }
+
+.verify-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.verify-headline .ok { font-weight: 600; }
+.verify-bad-text { color: var(--red-text, #991b1b); }
+
+.verify-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.verify-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.verify-mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.verify-mark-ok { background: var(--green-weak, #f0fdf4); color: var(--green, #16a34a); border: 1px solid #bbf7d0; }
+.verify-mark-bad { background: var(--red-weak, #fef2f2); color: var(--red, #dc2626); border: 1px solid var(--red-border, #fecaca); }
+.verify-mark-skip { background: #fff; color: var(--muted); border: 1px solid var(--border); }
+
+.verify-body { min-width: 0; }
+.verify-claim {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.verify-skip .verify-claim { color: var(--muted); font-weight: 400; }
+.verify-detail {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.verify-detail .link { white-space: nowrap; }
+
+/* The badge says where the check's expected value came from. Only "on-chain" is
+   a source the coordinator cannot rewrite, so only it gets the accent. */
+.verify-anchor {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: #fff;
+  font-weight: 500;
+}
+.verify-anchor-chain { border-color: #bfdbfe; color: var(--accent); background: #eff6ff; }
+.verify-anchor-crypto { border-color: #bbf7d0; color: var(--green, #16a34a); background: var(--green-weak, #f0fdf4); }
+
+.verify-more {
+  margin: 14px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.verify-more summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.verify-more summary:hover { color: var(--accent); }
+.verify-more p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+.verify-more code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
 
 /* ---------- tables ---------- */
 

@@ -12,6 +12,9 @@ const RELAYER = (import.meta.env.VITE_RELAYER_URL ?? 'http://localhost:8799').re
 export interface MempoolConfig {
   chainId: number;
   explorerBase: string;
+  /** Public RPC. The browser reads the chain directly through this to verify a
+   * reveal, so no claim on the condition page rests on the relayer's word. */
+  rpcUrl: string;
   relayer: `0x${string}`;
   usdc: `0x${string}`;
   eth: `0x${string}`;

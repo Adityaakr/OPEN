@@ -3,8 +3,11 @@
 //   leaf   = sha256(position_le_u32 || payload)
 //   parent = sha256(left || right)   (an odd node is promoted unchanged)
 //   empty  = sha256("")
-// so anyone can catch a tampered reveal without trusting the coordinator: the
-// root is derived only from the public plaintexts and the fixed slot positions.
+//
+// On its own this root proves NOTHING: comparing it to the root the coordinator
+// published alongside the plaintexts only shows one JSON blob is self-consistent.
+// It becomes a real check in verify.ts, which compares it against
+// PealMempool.settledRoot read from the chain.
 import { payloadBytes } from './util';
 
 async function sha256(bytes: Uint8Array): Promise<Uint8Array> {

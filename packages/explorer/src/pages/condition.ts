@@ -3,12 +3,15 @@ import {
   getCondition,
   getReveal,
   type Batch,
+  type CommitteeDetail,
   type ConditionDetail,
   type Reveal,
 } from '../api';
 import { wireCopy } from '../playground';
-import { recomputeMerkleRoot, normalizeHex } from '../merkle';
 import { isPrivatePayload } from '../privacy';
+import { getConfig, type MempoolConfig } from '../mempool/chain';
+import { normalizeHex } from '../merkle';
+import { verifyReveal, type Check, type VerifyReport } from '../verify';
 import {
   decodePayload,
   esc,
@@ -49,17 +52,22 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
   const revealEl = root.querySelector<HTMLElement>('#reveal')!;
 
   let condition: ConditionDetail | null = null;
-  let committee: { n: number; t: number } | null = null;
+  let committee: CommitteeDetail | null = null;
   let revealed = false;
   let pollTimer: number | undefined;
   let tickTimer: number | undefined;
 
   void getCommittee()
     .then((c) => {
-      committee = { n: c.n, t: c.t };
+      committee = c;
       renderStage();
     })
     .catch(() => {});
+
+  // The chain endpoint and the PealMempool address come from the relayer, but
+  // nothing is TAKEN from it: the browser reads the chain itself, and both the
+  // address and the RPC are printed in the panel so they can be checked.
+  const configReady: Promise<MempoolConfig | null> = getConfig().catch(() => null);
 
   /** Countdown or live share progress, depending on status. */
   const renderStage = () => {
@@ -116,7 +124,7 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
         renderStage();
         revealEl.innerHTML = revealSection(reveal, condition);
         wireCopy(revealEl);
-        wireVerify(revealEl, reveal);
+        void runVerification(revealEl, reveal, committee, configReady);
         if (pollTimer !== undefined) clearInterval(pollTimer);
         if (tickTimer !== undefined) clearInterval(tickTimer);
       }
@@ -135,37 +143,112 @@ export function renderCondition(root: HTMLElement, id: string): () => void {
   };
 }
 
-/** Recompute the merkle root from the revealed plaintexts in the browser and
- * compare it to the published one, so the reveal is verifiable without trusting
- * the coordinator. */
-function wireVerify(scope: HTMLElement, r: Reveal): void {
-  const btn = scope.querySelector<HTMLButtonElement>('#verify-root');
-  const out = scope.querySelector<HTMLElement>('#verify-result');
-  if (!btn || !out) return;
-  btn.addEventListener('click', () => {
-    btn.disabled = true;
-    out.hidden = false;
-    out.className = 'verify-result';
-    out.textContent = 'recomputing the root from all 64 plaintexts…';
-    void recomputeMerkleRoot(r.slots)
-      .then((got) => {
-        const want = normalizeHex(r.merkle_root);
-        if (normalizeHex(got) === want) {
-          out.className = 'verify-result verify-ok';
-          out.innerHTML = `<span class="ok">verified</span> the root recomputed from the plaintexts equals the published <span class="mono">${esc(truncMiddle(r.merkle_root, 12, 10))}</span>. this reveal was not tampered with.`;
-        } else {
-          out.className = 'verify-result verify-bad';
-          out.innerHTML = `<strong>mismatch.</strong> recomputed <span class="mono">${esc(truncMiddle(got, 12, 10))}</span> does not equal the published <span class="mono">${esc(truncMiddle(r.merkle_root, 12, 10))}</span>.`;
-        }
-      })
-      .catch((e) => {
-        out.className = 'verify-result verify-bad';
-        out.textContent = `could not recompute the root (${String(e)}).`;
-      })
-      .finally(() => {
-        btn.disabled = false;
-      });
-  });
+/** Run the real checks and paint the results. Nothing here compares a
+ * coordinator value against another coordinator value: the roots come off the
+ * chain, the hashes off the ciphertext bytes, the quorum out of a pairing
+ * equation. It runs on load rather than behind a button, because a check you
+ * have to ask for is a check nobody runs. */
+async function runVerification(
+  scope: HTMLElement,
+  r: Reveal,
+  committee: CommitteeDetail | null,
+  configReady: Promise<MempoolConfig | null>,
+): Promise<void> {
+  const out = scope.querySelector<HTMLElement>('#verify-panel');
+  if (!out) return;
+  const cfg = await configReady;
+  let report: VerifyReport;
+  try {
+    report = await verifyReveal(r, cfg, committee);
+  } catch (e) {
+    out.className = 'verify-panel verify-bad';
+    out.innerHTML = `<p>could not run the checks (${esc(String(e))}).</p>`;
+    return;
+  }
+
+  const failed = report.checks.filter((c) => c.status === 'fail');
+  const passed = report.checks.filter((c) => c.status === 'pass');
+  const anchored = passed.some((c) => c.anchor === 'chain');
+
+  const headline = failed.length
+    ? `<p class="verify-headline verify-bad-text"><strong>${failed.length} check${failed.length === 1 ? '' : 's'} failed.</strong> this reveal does not match what was committed. do not trust it.</p>`
+    : anchored
+      ? `<p class="verify-headline"><span class="ok">checks passed</span> the chain, the ciphertext bytes and the operators' shares all agree with what you see below. none of it rests on the coordinator's word.</p>`
+      : `<p class="verify-headline">${passed.length} check${passed.length === 1 ? '' : 's'} passed, but this condition was never committed on-chain, so there is no independent anchor. see below.</p>`;
+
+  out.className = `verify-panel${failed.length ? ' verify-bad' : ''}`;
+  out.innerHTML = `
+    ${headline}
+    <ul class="verify-list">${report.checks.map(checkRow).join('')}</ul>
+    ${verifyFooter(report, r, cfg)}
+  `;
+
+  // Now that the Sealed logs are in, turn each ct hash in the table into a link
+  // to the transaction that committed it, before the reveal existed.
+  if (cfg?.explorerBase) {
+    scope.querySelectorAll<HTMLElement>('[data-ct]').forEach((cell) => {
+      const commit = report.sealedCommits.get(normalizeHex(cell.dataset.ct ?? ''));
+      if (!commit) return;
+      const url = `${cfg.explorerBase.replace(/\/$/, '')}/tx/${commit.txHash}`;
+      cell.innerHTML = `<a class="link mono" href="${esc(url)}" target="_blank" rel="noopener"
+        title="committed on-chain in block ${commit.blockNumber}, before the reveal">${cell.innerHTML}</a>`;
+    });
+  }
+}
+
+const ANCHOR_LABEL: Record<Check['anchor'], string> = {
+  chain: 'on-chain',
+  crypto: 'cryptographic',
+  local: 'from the sealed data',
+  none: 'not checkable',
+};
+
+function checkRow(c: Check): string {
+  const mark =
+    c.status === 'pass'
+      ? '<span class="verify-mark verify-mark-ok" aria-hidden="true">&check;</span>'
+      : c.status === 'fail'
+        ? '<span class="verify-mark verify-mark-bad" aria-hidden="true">&times;</span>'
+        : '<span class="verify-mark verify-mark-skip" aria-hidden="true">&ndash;</span>';
+  return `
+    <li class="verify-item verify-${c.status}">
+      ${mark}
+      <div class="verify-body">
+        <p class="verify-claim">${esc(c.label)}
+          <span class="verify-anchor verify-anchor-${c.anchor}">${esc(ANCHOR_LABEL[c.anchor])}</span>
+        </p>
+        <p class="verify-detail">${c.detail}</p>
+      </div>
+    </li>`;
+}
+
+/** The honest footer. Every one of these limits is real, and hiding them would
+ * make the panel above worth less, not more. */
+function verifyFooter(report: VerifyReport, r: Reveal, cfg: MempoolConfig | null): string {
+  const settleUrl =
+    report.settleTx && cfg?.explorerBase
+      ? `${cfg.explorerBase.replace(/\/$/, '')}/tx/${report.settleTx}`
+      : null;
+  const settle = settleUrl
+    ? `<a class="link" href="${esc(settleUrl)}" target="_blank" rel="noopener">the settlement transaction</a>`
+    : '';
+  return `
+    <details class="verify-more">
+      <summary>what this does not prove, and how to check it yourself</summary>
+      <p>the chain proves the plaintexts below are exactly the ones it settled, and that
+      nobody can change them now. it does not prove the coordinator was honest when it
+      built the batch: <code>executeBatch</code> is coordinator-only, so what the chain
+      fixes is the record, not the intent. what constrains the intent is the padding and
+      ordering checks above, which the coordinator cannot satisfy while cheating.</p>
+      <p>a ciphertext also carries no proof of which committee it was sealed to. that is
+      the scheme, not this deployment, and no amount of api surface fixes it.</p>
+      <p>run it all yourself:
+      <a class="link" download="peal-batch-${esc(r.condition_id)}.json"
+         href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(r, null, 2))}">download
+      the batch json</a> ${settle ? `or open ${settle}` : ''}. the json carries the sealed
+      ciphertexts, the plaintexts and the operator shares, which is everything the checks
+      above consume.</p>
+    </details>`;
 }
 
 function metaCard(c: ConditionDetail): string {
@@ -205,12 +288,12 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
           </dd></div>
         </dl>
         <p class="trust-note">the merkle root commits to every slot below, padding included.
-        anyone can recompute it from the plaintexts and catch a tampered reveal.
-        <button type="button" class="link" id="verify-root">recompute it here</button>, or
-        <a class="link" download="peal-batch-${esc(r.condition_id)}.json"
-           href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(r, null, 2))}">download
-        the batch json</a> to check it yourself.</p>
-        <p id="verify-result" class="verify-result" hidden></p>
+        this browser rebuilt it from the plaintexts and checked it against the chain, the
+        ciphertexts and the operators' shares. the results are below, not on request.</p>
+        <div id="verify-panel" class="verify-panel">
+          <p class="verify-headline"><span class="mp-spinner" aria-hidden="true"></span>
+          reading the chain and re-running the checks…</p>
+        </div>
         ${slotGrid(r)}
       </div>
       ${boardTable(r)}
@@ -270,7 +353,7 @@ function slotRow(s: Reveal['slots'][number], stagger: number): string {
         : `<span class="${decoded.isHex ? 'mono' : 'payload-text'}">${esc(decoded.text)}</span>`;
   return `<tr class="${s.is_dummy ? 'dummy-row' : ''} board-row" style="--stagger:${stagger}ms">
     <td class="num">${s.position}</td>
-    <td><span class="mono" title="${esc(s.ct_hash)}">${esc(truncMiddle(s.ct_hash, 12, 10))}</span></td>
+    <td><span class="mono" data-ct="${esc(s.ct_hash)}" title="${esc(s.ct_hash)}">${esc(truncMiddle(s.ct_hash, 12, 10))}</span></td>
     <td>${payload} ${tags.join(' ')}</td>
   </tr>`;
 }
