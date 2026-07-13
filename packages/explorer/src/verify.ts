@@ -16,8 +16,10 @@ import type { MempoolConfig } from './mempool/chain';
 import { recomputeMerkleRoot, normalizeHex } from './merkle';
 import { payloadBytes } from './util';
 
-/** Dummy payloads are literally prefixed with this (bte-crypto dummy_payload). */
-const DUMMY_PREFIX = 'BTE_DUMMY_V0:';
+/** The protocol's padding marker: bte-crypto prefixes every padding payload with
+ * these bytes. Never printed in the UI, where it reads like placeholder data
+ * rather than the wire constant it is. */
+const PADDING_MARKER = 'BTE_DUMMY_V0:';
 
 // cast sig "settledRoot(bytes32)"
 const SEL_SETTLED_ROOT = '0x08afcebd';
@@ -109,13 +111,13 @@ async function checkCtHashes(slots: RevealSlot[]): Promise<Check> {
   }
   return {
     id: 'ct-hash',
-    label: 'every ct hash is derived from its ciphertext',
+    label: 'each ciphertext hash matches its ciphertext',
     status: bad.length === 0 ? 'pass' : 'fail',
     anchor: 'crypto',
     detail:
       bad.length === 0
-        ? `re-hashed all ${withBytes.length} sealed ciphertexts. each sha256 equals the ct hash shown in the table, so the "before" column is derived from real bytes, not asserted.`
-        : `slots ${bad.join(', ')} carry a ct hash that is not the sha256 of the ciphertext served for them.`,
+        ? `re-hashed all ${withBytes.length} sealed ciphertexts in this browser. every sha256 equals the hash shown in the sealed column below, so that column is derived from the ciphertext bytes rather than taken on the coordinator's word.`
+        : `slot ${bad.join(', ')} carries a hash that is not the sha256 of the ciphertext served for it.`,
   };
 }
 
@@ -139,21 +141,22 @@ function checkSealedOnChain(
   }
   const revealed = new Set(slots.map((s) => normalizeHex(s.ct_hash)));
   const missing = [...commits.keys()].filter((h) => !revealed.has(h));
-  const dropped = [...commits.keys()].filter((h) => {
+  const reclassified = [...commits.keys()].filter((h) => {
     const slot = slots.find((s) => normalizeHex(s.ct_hash) === h);
     return slot?.is_dummy === true;
   });
-  const bad = missing.length + dropped.length;
+  const bad = missing.length + reclassified.length;
   const link = `${cfg.explorerBase.replace(/\/$/, '')}/address/${cfg.pealMempool}`;
+  const n = commits.size;
   return {
     id: 'sealed-onchain',
-    label: 'each sealed order was committed on-chain before the reveal',
+    label: 'every order was committed on-chain before it was opened',
     status: bad === 0 ? 'pass' : 'fail',
     anchor: 'chain',
     detail:
       bad === 0
-        ? `read ${commits.size} Sealed log${commits.size === 1 ? '' : 's'} from <a class="link" href="${link}" target="_blank" rel="noopener">PealMempool</a> on chain ${cfg.chainId}. every hash committed before the cue appears as a real slot in this reveal, so nothing was dropped or buried in the padding.`
-        : `${missing.length} ct hash(es) committed on-chain are absent from this reveal and ${dropped.length} were relabelled as padding. that is censorship: the order was sealed but never opened.`,
+        ? `read ${n} commitment${n === 1 ? '' : 's'} from <a class="link" href="${link}" target="_blank" rel="noopener">PealMempool</a> on chain ${cfg.chainId}, each timestamped by its block. every hash committed before the cue is accounted for as an order below: none was dropped, and none was reclassified as padding. each hash in the sealed column links to the transaction that committed it.`
+        : `${missing.length} commitment(s) recorded on-chain are absent from this reveal, and ${reclassified.length} were reclassified as padding. an order was sealed and then never opened.`,
   };
 }
 
@@ -180,34 +183,36 @@ function checkOnchainRoot(
   const link = `${cfg.explorerBase.replace(/\/$/, '')}/address/${cfg.pealMempool}`;
   return {
     id: 'onchain-root',
-    label: 'the chain settled this exact set of plaintexts',
+    label: 'the chain settled these exact plaintexts',
     status: ok ? 'pass' : 'fail',
     anchor: 'chain',
     detail: ok
-      ? `the root rebuilt in this browser from the plaintexts equals <a class="link" href="${link}" target="_blank" rel="noopener">settledRoot</a> read from the contract. the coordinator cannot change a plaintext now without breaking a root the chain already fixed.`
-      : `the root rebuilt from these plaintexts does not match the one the chain settled. the reveal shown here is not what was executed.`,
+      ? `the merkle root rebuilt in this browser from the plaintexts below equals <a class="link" href="${link}" target="_blank" rel="noopener">settledRoot</a> read from the contract. the contract recomputes that tree itself at settlement and rejects a mismatch, so these are the plaintexts the chain executed, and no later edit can change them.`
+      : `the root rebuilt from these plaintexts does not equal the one the chain settled. what is shown here is not what was executed.`,
   };
 }
 
 /** Padding must actually be padding. The merkle leaf covers only (position,
  * payload), NOT the is_dummy flag, so the root alone cannot stop the coordinator
- * from calling a real order padding. The dummy payload's literal prefix can. */
+ * from classifying an order as padding. The padding marker in the payload can. */
 function checkPadding(slots: RevealSlot[]): Check {
-  const liars = slots.filter((s) => {
+  const mislabelled = slots.filter((s) => {
     if (!s.valid) return false;
-    const text = new TextDecoder().decode(payloadBytes(s.payload_b64).slice(0, DUMMY_PREFIX.length));
-    return s.is_dummy !== (text === DUMMY_PREFIX);
+    const text = new TextDecoder().decode(
+      payloadBytes(s.payload_b64).slice(0, PADDING_MARKER.length),
+    );
+    return s.is_dummy !== (text === PADDING_MARKER);
   });
-  const dummies = slots.filter((s) => s.is_dummy).length;
+  const pad = slots.filter((s) => s.is_dummy).length;
   return {
     id: 'padding',
-    label: 'the padding is real padding, not a hidden order',
-    status: liars.length === 0 ? 'pass' : 'fail',
+    label: 'no order is concealed among the padding slots',
+    status: mislabelled.length === 0 ? 'pass' : 'fail',
     anchor: 'local',
     detail:
-      liars.length === 0
-        ? `all ${dummies} padding slots carry the ${DUMMY_PREFIX} marker and no real slot does. the plaintexts are fixed by the root above, so this cannot be edited after the fact.`
-        : `slot(s) ${liars.map((s) => s.position).join(', ')} are labelled inconsistently with their payload. a real order may be hiding in the padding.`,
+      mislabelled.length === 0
+        ? `every one of the ${pad} padding slots carries the protocol's padding marker, and no order slot carries it. because the plaintexts are fixed by the root above, this classification cannot be revised after settlement.`
+        : `slot ${mislabelled.map((s) => s.position).join(', ')} is classified inconsistently with its payload: an order is being presented as padding.`,
   };
 }
 
@@ -222,14 +227,15 @@ function checkOrdering(slots: RevealSlot[]): Check {
     (s, i) => i === 0 || normalizeHex(real[i - 1].ct_hash) <= normalizeHex(s.ct_hash),
   );
   const ok = contiguous && sorted;
+  const one = real.length === 1;
   return {
     id: 'ordering',
-    label: 'slot order was fixed by the ciphertext hashes, not chosen',
+    label: 'slot order is determined by the ciphertext hashes',
     status: ok ? 'pass' : 'fail',
     anchor: 'local',
     detail: ok
-      ? `the ${real.length} real seal${real.length === 1 ? '' : 's'} occupy the first slots in ascending ct-hash order, padding fills the tail. the order is a function of hashes nobody could steer, so there is no priority to sell.`
-      : 'the real slots are not in ascending ct-hash order. someone chose this ordering.',
+      ? `the ${real.length} sealed order${one ? '' : 's'} occup${one ? 'ies the leading slot' : 'y the leading slots'} in ascending hash order, with padding filling the tail. a position is a function of the ciphertext's hash, which nobody can steer without discarding the ciphertext, so priority cannot be bought.`
+      : 'the order slots are not in ascending hash order, so the ordering was chosen rather than derived.',
   };
 }
 
@@ -265,18 +271,18 @@ async function checkShares(r: Reveal, committee: CommitteeDetail | null): Promis
   }
   const t = committee.t;
   const enough = good >= t;
-  const honest = disputed.length === 0;
+  const consistent = disputed.length === 0;
   return {
     id: 'shares',
-    label: 'a real quorum of operators opened this batch',
-    status: enough && honest ? 'pass' : 'fail',
+    label: 'a threshold quorum of operators produced this decryption',
+    status: enough && consistent ? 'pass' : 'fail',
     anchor: 'crypto',
     detail:
-      enough && honest
-        ? `re-ran the pairing check on all ${usable.length} shares against the batch headers. ${good} of them are valid, and ${t} are needed. the committee really did the decryption: these shares cannot be forged without the operators' key shares.`
+      enough && consistent
+        ? `re-ran the pairing check on all ${usable.length} operator shares against the batch headers, here in the browser. ${good} are valid and ${t} are required. a share cannot be produced without the operator's key share, so the decryption came from the committee and not from the coordinator alone.`
         : !enough
-          ? `only ${good} shares pass the pairing check, but ${t} are needed. this reveal could not have come from an honest quorum.`
-          : `operator(s) ${disputed.join(', ')} are marked differently by the coordinator than the pairing check says. it is lying about who verified.`,
+          ? `only ${good} shares satisfy the pairing check, but ${t} are required. this reveal cannot have come from a threshold quorum.`
+          : `operator ${disputed.join(', ')} is recorded differently by the coordinator than the pairing check finds. its record of who verified is wrong.`,
   };
 }
 

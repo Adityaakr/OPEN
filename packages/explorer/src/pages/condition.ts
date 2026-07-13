@@ -170,16 +170,46 @@ async function runVerification(
   const passed = report.checks.filter((c) => c.status === 'pass');
   const anchored = passed.some((c) => c.anchor === 'chain');
 
-  const headline = failed.length
-    ? `<p class="verify-headline verify-bad-text"><strong>${failed.length} check${failed.length === 1 ? '' : 's'} failed.</strong> this reveal does not match what was committed. do not trust it.</p>`
+  const summary = failed.length
+    ? `<p class="verify-summary verify-bad-text"><strong>${failed.length} of ${report.checks.length} checks failed.</strong>
+       this reveal does not match what was committed on-chain.</p>`
     : anchored
-      ? `<p class="verify-headline"><span class="ok">checks passed</span> the chain, the ciphertext bytes and the operators' shares all agree with what you see below. none of it rests on the coordinator's word.</p>`
-      : `<p class="verify-headline">${passed.length} check${passed.length === 1 ? '' : 's'} passed, but this condition was never committed on-chain, so there is no independent anchor. see below.</p>`;
+      ? `<p class="verify-summary">every check below was recomputed in this browser and held against the
+         chain, the ciphertext bytes and the operators' shares. no result here rests on the
+         coordinator's word.</p>`
+      : `<p class="verify-summary">${passed.length} of ${report.checks.length} checks passed. this condition was
+         never committed on-chain, so two of them have no independent anchor to test against.</p>`;
+
+  // Grouped by what backs each claim, strongest evidence first: a reader should
+  // be able to see at a glance which results survive a dishonest coordinator.
+  const groups: { title: string; note: string; of: Check['anchor'][] }[] = [
+    { title: 'anchored on-chain', note: 'read from the contract by this browser, over the public rpc', of: ['chain'] },
+    { title: 'cryptographic', note: 'recomputed here from the sealed bytes and the operators\' shares', of: ['crypto'] },
+    { title: 'structural', note: 'derived from data the merkle root above already fixes', of: ['local'] },
+    { title: 'not checkable here', note: 'stated rather than passed over in silence', of: ['none'] },
+  ];
+
+  const sections = groups
+    .map(({ title, note, of }) => {
+      const rows = report.checks.filter((c) => of.includes(c.anchor));
+      if (!rows.length) return '';
+      return `
+        <section class="verify-group">
+          <h3 class="verify-group-title">${esc(title)}<span class="verify-group-note">${esc(note)}</span></h3>
+          <ul class="verify-list">${rows.map(checkRow).join('')}</ul>
+        </section>`;
+    })
+    .join('');
 
   out.className = `verify-panel${failed.length ? ' verify-bad' : ''}`;
   out.innerHTML = `
-    ${headline}
-    <ul class="verify-list">${report.checks.map(checkRow).join('')}</ul>
+    <div class="verify-head">
+      <h3 class="verify-title">verification
+        <span class="verify-count ${failed.length ? 'verify-count-bad' : 'verify-count-ok'}">${passed.length}/${report.checks.length}</span>
+      </h3>
+      ${summary}
+    </div>
+    ${sections}
     ${verifyFooter(report, r, cfg)}
   `;
 
@@ -196,13 +226,8 @@ async function runVerification(
   }
 }
 
-const ANCHOR_LABEL: Record<Check['anchor'], string> = {
-  chain: 'on-chain',
-  crypto: 'cryptographic',
-  local: 'from the sealed data',
-  none: 'not checkable',
-};
-
+/** One claim. The group heading already says what backs it, so the row carries
+ * only the verdict, the claim, and the evidence. */
 function checkRow(c: Check): string {
   const mark =
     c.status === 'pass'
@@ -214,9 +239,7 @@ function checkRow(c: Check): string {
     <li class="verify-item verify-${c.status}">
       ${mark}
       <div class="verify-body">
-        <p class="verify-claim">${esc(c.label)}
-          <span class="verify-anchor verify-anchor-${c.anchor}">${esc(ANCHOR_LABEL[c.anchor])}</span>
-        </p>
+        <p class="verify-claim">${esc(c.label)}</p>
         <p class="verify-detail">${c.detail}</p>
       </div>
     </li>`;
@@ -235,13 +258,13 @@ function verifyFooter(report: VerifyReport, r: Reveal, cfg: MempoolConfig | null
   return `
     <details class="verify-more">
       <summary>what this does not prove, and how to check it yourself</summary>
-      <p>the chain proves the plaintexts below are exactly the ones it settled, and that
-      nobody can change them now. it does not prove the coordinator was honest when it
-      built the batch: <code>executeBatch</code> is coordinator-only, so what the chain
-      fixes is the record, not the intent. what constrains the intent is the padding and
-      ordering checks above, which the coordinator cannot satisfy while cheating.</p>
-      <p>a ciphertext also carries no proof of which committee it was sealed to. that is
-      the scheme, not this deployment, and no amount of api surface fixes it.</p>
+      <p>the chain fixes which plaintexts were settled and makes them permanent. it does not
+      prove the coordinator was honest while assembling the batch, because
+      <code>executeBatch</code> is coordinator-only: what the chain pins is the record, not
+      the intent. the structural checks above are what constrain the intent, since a
+      coordinator that reordered or suppressed an order could not satisfy them.</p>
+      <p>a ciphertext also carries no proof of which committee it was sealed to. that is a
+      property of the scheme rather than this deployment, and no api surface would fix it.</p>
       <p>run it all yourself:
       <a class="link" download="peal-batch-${esc(r.condition_id)}.json"
          href="data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(r, null, 2))}">download
@@ -280,19 +303,17 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
       <div class="card reveal-card">
         <dl class="stats">
           <div><dt>opened</dt><dd>${esc(fmtUnix(r.revealed_at))}</dd></div>
-          <div><dt>real seals</dt><dd class="num">${real}<span class="muted"> of ${r.slots.length} slots</span></dd></div>
+          <div><dt>sealed orders</dt><dd class="num">${real}<span class="muted"> of ${r.slots.length} slots</span></dd></div>
           <div><dt>reveal took</dt><dd class="num">${finalizeMs} ms</dd></div>
           <div><dt>merkle root</dt><dd>
             <button type="button" class="hash-copy mono" data-copy="${esc(r.merkle_root)}"
                     title="copy merkle root">${esc(truncMiddle(r.merkle_root, 12, 10))}</button>
           </dd></div>
         </dl>
-        <p class="trust-note">the merkle root commits to every slot below, padding included.
-        this browser rebuilt it from the plaintexts and checked it against the chain, the
-        ciphertexts and the operators' shares. the results are below, not on request.</p>
+        <p class="trust-note">the merkle root commits to every slot below, padding included.</p>
         <div id="verify-panel" class="verify-panel">
-          <p class="verify-headline"><span class="mp-spinner" aria-hidden="true"></span>
-          reading the chain and re-running the checks…</p>
+          <p class="verify-summary"><span class="mp-spinner" aria-hidden="true"></span>
+          reading the chain and recomputing the checks…</p>
         </div>
         ${slotGrid(r)}
       </div>
@@ -311,7 +332,7 @@ function revealSection(r: Reveal, c: ConditionDetail): string {
   `;
 }
 
-/** The whole batch at a glance: one cell per slot, real seals pop out of the
+/** The whole batch at a glance: one cell per slot, sealed orders pop out of the
  * padding, corrupt slots go red, private ones carry a lock. */
 function slotGrid(r: Reveal): string {
   const cells = r.slots

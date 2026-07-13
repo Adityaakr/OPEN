@@ -543,21 +543,66 @@ a.btn {
 }
 .verify-panel.verify-bad { border-color: var(--red-border, #fecaca); background: var(--red-weak, #fef2f2); }
 
-.verify-headline {
+.verify-head {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.verify-title {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 0;
   font-size: 13px;
+  font-weight: 600;
   color: var(--text);
-  line-height: 1.5;
 }
-.verify-headline .ok { font-weight: 600; }
+.verify-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.verify-count-ok { background: var(--green-weak, #f0fdf4); color: var(--green, #16a34a); border: 1px solid #bbf7d0; }
+.verify-count-bad { background: var(--red-weak, #fef2f2); color: var(--red, #dc2626); border: 1px solid var(--red-border, #fecaca); }
+
+/* Not flex: the spinner runs inline with the sentence rather than sitting in a
+   column beside it. */
+.verify-summary {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.verify-summary .mp-spinner { vertical-align: -2px; margin-right: 6px; }
 .verify-bad-text { color: var(--red-text, #991b1b); }
+
+/* Grouped by what backs each claim, so a reader can see at a glance which
+   results would survive a dishonest coordinator. */
+.verify-group { margin-top: 16px; }
+.verify-group-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.verify-group-note {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
 
 .verify-list {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   padding: 0;
   display: grid;
   gap: 10px;
@@ -589,10 +634,6 @@ a.btn {
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
 }
 .verify-skip .verify-claim { color: var(--muted); font-weight: 400; }
 .verify-detail {
@@ -602,22 +643,6 @@ a.btn {
   line-height: 1.55;
 }
 .verify-detail .link { white-space: nowrap; }
-
-/* The badge says where the check's expected value came from. Only "on-chain" is
-   a source the coordinator cannot rewrite, so only it gets the accent. */
-.verify-anchor {
-  flex: none;
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  background: #fff;
-  font-weight: 500;
-}
-.verify-anchor-chain { border-color: #bfdbfe; color: var(--accent); background: #eff6ff; }
-.verify-anchor-crypto { border-color: #bbf7d0; color: var(--green, #16a34a); background: var(--green-weak, #f0fdf4); }
 
 .verify-more {
   margin: 14px 0 0;

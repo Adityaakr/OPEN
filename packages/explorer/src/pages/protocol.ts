@@ -183,7 +183,7 @@ export function renderProtocol(root: HTMLElement): () => void {
             <h3>Operators post one share each</h3>
             <p>Each outbound-only node polls for frozen work, decrypts its local keystore, and
             computes one 48-byte partial for the entire batch. The share is the same size
-            whether the batch holds one real seal or sixty-four.</p>
+            whether the batch holds one sealed order or sixty-four.</p>
             <span class="api">GET /v0/work &middot; POST /v0/shares</span>
           </div></li>
           <li><div>
