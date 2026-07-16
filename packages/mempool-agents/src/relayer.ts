@@ -88,8 +88,16 @@ async function config() {
 }
 
 async function state() {
-  const [pubR, pealR] = await Promise.all([reserves(d.publicPool), reserves(d.pealPool)]);
-  return { publicPool: pubR, pealPool: pealR };
+  // Ship the live price and reset target alongside the raw reserves: /prepare
+  // rewrites both pools to exactly that state before every swap, so the idle
+  // quote card can price against what execution will actually see instead of
+  // whatever the last swap left behind.
+  const [pubR, pealR, usd] = await Promise.all([
+    reserves(d.publicPool),
+    reserves(d.pealPool),
+    ethUsd(),
+  ]);
+  return { publicPool: pubR, pealPool: pealR, ethUsd: usd, targetBase: TARGET_BASE.toString() };
 }
 
 // Reset target. The USDC-side depth is fixed; the ETH reserve is derived from

@@ -46,12 +46,44 @@ export function getConfig(): Promise<MempoolConfig> {
   return j<MempoolConfig>('/config');
 }
 
-export async function getState(): Promise<{ publicPool: PoolState; pealPool: PoolState }> {
-  const raw = await j<{ publicPool: { base: string; quote: string }; pealPool: { base: string; quote: string } }>(
-    '/state',
-  );
+export interface MempoolState {
+  publicPool: PoolState;
+  pealPool: PoolState;
+  /** Live ETH/USD from the relayer's price feed. Older relayers omit it. */
+  ethUsd?: number;
+  /** USDC-side depth (wei) the relayer resets both pools to before a swap. */
+  targetBase?: bigint;
+}
+
+export async function getState(): Promise<MempoolState> {
+  const raw = await j<{
+    publicPool: { base: string; quote: string };
+    pealPool: { base: string; quote: string };
+    ethUsd?: number;
+    targetBase?: string;
+  }>('/state');
   const p = (s: { base: string; quote: string }) => ({ base: BigInt(s.base), quote: BigInt(s.quote) });
-  return { publicPool: p(raw.publicPool), pealPool: p(raw.pealPool) };
+  return {
+    publicPool: p(raw.publicPool),
+    pealPool: p(raw.pealPool),
+    ethUsd: raw.ethUsd,
+    targetBase: raw.targetBase ? BigInt(raw.targetBase) : undefined,
+  };
+}
+
+/** The reserves a swap will actually execute against: /prepare resets both
+ * pools to the target depth at the live price before every swap, so quote
+ * against that state, not the last swap's leftovers. Falls back to the peal
+ * pool's current reserves when the relayer predates the live-price field.
+ * The quote derivation mirrors the relayer's targetQuote() exactly. */
+export function quoteReserves(st: MempoolState): PoolState {
+  if (st.ethUsd && st.ethUsd > 0 && st.targetBase) {
+    return {
+      base: st.targetBase,
+      quote: (st.targetBase * 1000n) / BigInt(Math.round(st.ethUsd * 1000)),
+    };
+  }
+  return st.pealPool;
 }
 
 /** Reset both pools to identical reserves before a swap, so the only difference

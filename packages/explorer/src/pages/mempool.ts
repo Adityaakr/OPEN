@@ -21,6 +21,7 @@ import {
   getPublicResult,
   getState,
   prepareSwap,
+  quoteReserves,
   submitPublicSwap,
   toWad,
   txUrl,
@@ -254,13 +255,16 @@ export function renderMempool(root: HTMLElement): () => void {
     const refreshQuote = async () => {
       if (busy) return;
       try {
-        const { pealPool } = await getState();
-        const [rIn, rOut] = usdcToEth ? [pealPool.base, pealPool.quote] : [pealPool.quote, pealPool.base];
+        // Quote against the post-reset reserves (live price), not the stale
+        // pool state left by the last swap: /prepare re-prices both lanes
+        // before execution, so this is what the visitor will actually get.
+        const pool = quoteReserves(await getState());
+        const [rIn, rOut] = usdcToEth ? [pool.base, pool.quote] : [pool.quote, pool.base];
         const amountIn = toWad(Number(payEl.value) || 0);
         const out = getAmountOut(amountIn, rIn, rOut);
         const slip = SLIP_BPS[slipEl.value] ?? 50n;
         const floor = (out * (10000n - slip)) / 10000n;
-        const price = Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote));
+        const price = Number(fromWad(pool.base)) / Number(fromWad(pool.quote));
         recvEl.textContent = num(fromWad(out));
         rateEl.textContent = `1 ETH = ${num(price, 2)} USDC`;
         minEl.textContent = `${num(fromWad(floor))} ${recvToken()}`;
